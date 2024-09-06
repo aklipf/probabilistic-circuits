@@ -3,9 +3,16 @@ mod wfol;
 use wfol::tree::*;
 
 fn main() {
-    println!("Hello, world!");
-
-    let expr = all(var("b"),any(var("a"),or(not(and(not(var("a")), var("b"))), weight(0.5,var("c")))));
+    let expr = all(
+        var("x"),
+        any(
+            var("y"),
+            imply(
+                or(not(and(not(var("A")), var("B"))), weight(0.5, var("C"))),
+                predi("test", &["x", "y"]),
+            ),
+        ),
+    );
 
     println!("{expr}");
 }
