@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::*;
 
@@ -213,3 +214,5 @@ pub fn all<T: Into<Node>>(var: Var, expr: T) -> All {
         expr: Box::new(expr.into()),
     }
 }
+
+//pub fn get_vars(node: Node) -> (HashSet<Var>, HashSet<Var>) {}

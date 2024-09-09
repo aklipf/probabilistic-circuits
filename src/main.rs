@@ -1,5 +1,6 @@
 mod wfol;
 
+use wfol::nnf::*;
 use wfol::tree::*;
 
 fn main() {
@@ -8,11 +9,20 @@ fn main() {
         any(
             var("y"),
             imply(
-                or(not(and(not(var("A")), var("B"))), weight(0.5, var("C"))),
+                or(not(and(not(var("A")), var("B"))), var("C")),
                 predi("test", &["x", "y"]),
             ),
         ),
     );
 
     println!("{expr}");
+
+    let nnf = to_nnf(&expr.into());
+    println!("{nnf}");
 }
+
+/*
+(¬(¬A∧B)∨C)⇒test(x, y)
+¬(¬(¬A∧B)∨C)∨test(x, y)
+((¬A∧B)∧¬C)∨test(x, y)
+*/
