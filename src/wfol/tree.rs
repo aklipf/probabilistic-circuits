@@ -5,6 +5,7 @@ use core::panic;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Debug;
+use std::slice;
 
 #[derive(Debug)]
 pub struct Variable {
@@ -25,15 +26,15 @@ pub enum Node<IDX: Indexing> {
     },
     Not {
         output: IDX,
-        inputs: (IDX,),
+        inputs: [IDX; 1],
     },
     And {
         output: IDX,
-        inputs: (IDX, IDX),
+        inputs: [IDX; 2],
     },
     Or {
         output: IDX,
-        inputs: (IDX, IDX),
+        inputs: [IDX; 2],
     },
     Predicate {
         output: IDX,
@@ -48,38 +49,83 @@ pub enum Node<IDX: Indexing> {
     All {
         output: IDX,
         var_id: IDX,
-        inputs: (IDX,),
+        inputs: [IDX; 1],
     },
     Any {
         output: IDX,
         var_id: IDX,
-        inputs: (IDX,),
+        inputs: [IDX; 1],
     },
     None,
 }
 
+impl<IDX: Indexing> Default for Node<IDX> {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
 impl<IDX: Indexing> Node<IDX> {
+    pub(super) fn childs(&self) -> &[IDX] {
+        match self {
+            Node::Not { inputs, .. } => inputs,
+            Node::And { inputs, .. } => inputs,
+            Node::Or { inputs, .. } => inputs,
+            Node::Predicate { next_id, .. } => {
+                if next_id.is_none() {
+                    &[]
+                } else {
+                    slice::from_ref(next_id)
+                }
+            }
+            Node::PredicateVariable { next_id, .. } => {
+                if next_id.is_none() {
+                    &[]
+                } else {
+                    slice::from_ref(next_id)
+                }
+            }
+            Node::All { inputs, .. } => inputs,
+            Node::Any { inputs, .. } => inputs,
+            _ => &[],
+        }
+    }
+
+    pub(super) fn parent(&self) -> IDX {
+        match self {
+            Node::Variable { output, .. } => *output,
+            Node::Not { output, .. } => *output,
+            Node::And { output, .. } => *output,
+            Node::Or { output, .. } => *output,
+            Node::Predicate { output, .. } => *output,
+            Node::PredicateVariable { previous_id, .. } => *previous_id,
+            Node::All { output, .. } => *output,
+            Node::Any { output, .. } => *output,
+            Node::None => panic!("None nodes have no input"),
+        }
+    }
+
     pub(super) fn replace_input(&mut self, old: IDX, new: IDX) {
         match self {
             Node::Variable { .. } => panic!("Variable nodes have no input"),
             Node::Not { inputs, .. } => {
-                assert_eq!(old, inputs.0, "old IDX didn't correspond to any input");
-                inputs.0 = new;
+                assert_eq!(old, inputs[0], "old IDX didn't correspond to any input");
+                inputs[0] = new;
             }
             Node::And { inputs, .. } => {
-                if old == inputs.0 {
-                    inputs.0 = new;
-                } else if old == inputs.1 {
-                    inputs.1 = new;
+                if old == inputs[0] {
+                    inputs[0] = new;
+                } else if old == inputs[1] {
+                    inputs[1] = new;
                 } else {
                     panic!("old IDX didn't correspond to any input")
                 }
             }
             Node::Or { inputs, .. } => {
-                if old == inputs.0 {
-                    inputs.0 = new;
-                } else if old == inputs.1 {
-                    inputs.1 = new;
+                if old == inputs[0] {
+                    inputs[0] = new;
+                } else if old == inputs[1] {
+                    inputs[1] = new;
                 } else {
                     panic!("old IDX didn't correspond to any input")
                 }
@@ -93,27 +139,13 @@ impl<IDX: Indexing> Node<IDX> {
                 *next_id = new;
             }
             Node::All { inputs, .. } => {
-                assert_eq!(old, inputs.0, "old IDX didn't correspond to any input");
-                inputs.0 = new;
+                assert_eq!(old, inputs[0], "old IDX didn't correspond to any input");
+                inputs[0] = new;
             }
             Node::Any { inputs, .. } => {
-                assert_eq!(old, inputs.0, "old IDX didn't correspond to any input");
-                inputs.0 = new;
+                assert_eq!(old, inputs[0], "old IDX didn't correspond to any input");
+                inputs[0] = new;
             }
-            Node::None => panic!("None nodes have no input"),
-        }
-    }
-
-    pub(super) fn get_output(&self) -> IDX {
-        match self {
-            Node::Variable { output, .. } => *output,
-            Node::Not { output, .. } => *output,
-            Node::And { output, .. } => *output,
-            Node::Or { output, .. } => *output,
-            Node::Predicate { output, .. } => *output,
-            Node::PredicateVariable { previous_id, .. } => *previous_id,
-            Node::All { output, .. } => *output,
-            Node::Any { output, .. } => *output,
             Node::None => panic!("None nodes have no input"),
         }
     }
@@ -139,7 +171,7 @@ impl<IDX: Indexing> Tree<IDX> {
 
         let node = self.nodes.pop().expect("The tree is empty");
 
-        self.nodes[node.get_output().addr()].replace_input(old_idx, idx);
+        self.nodes[node.parent().addr()].replace_input(old_idx, idx);
         self.nodes[idx.addr()] = node;
         todo!("fix this");
     }
@@ -210,7 +242,7 @@ impl<IDX: Indexing> Tree<IDX> {
                 let input = self.push_recursive(expr, idx, var_map, pred_map);
 
                 self.nodes[idx.addr()] = Node::Not {
-                    inputs: (input,),
+                    inputs: [input],
                     output: output,
                 };
 
@@ -223,7 +255,7 @@ impl<IDX: Indexing> Tree<IDX> {
                 let right_idx = self.push_recursive(right, idx, var_map, pred_map);
 
                 self.nodes[idx.addr()] = Node::And {
-                    inputs: (left_idx, right_idx),
+                    inputs: [left_idx, right_idx],
                     output: idx,
                 };
 
@@ -236,7 +268,7 @@ impl<IDX: Indexing> Tree<IDX> {
                 let right_idx = self.push_recursive(right, idx, var_map, pred_map);
 
                 self.nodes[idx.addr()] = Node::Or {
-                    inputs: (left_idx, right_idx),
+                    inputs: [left_idx, right_idx],
                     output: idx,
                 };
 
@@ -247,7 +279,7 @@ impl<IDX: Indexing> Tree<IDX> {
                 let input = self.push_recursive(expr, idx, var_map, pred_map);
 
                 self.nodes[idx.addr()] = Node::All {
-                    inputs: (input,),
+                    inputs: [input],
                     var_id: *var_map.get(var).unwrap(),
                     output: output,
                 };
@@ -259,7 +291,7 @@ impl<IDX: Indexing> Tree<IDX> {
                 let input = self.push_recursive(expr, idx, var_map, pred_map);
 
                 self.nodes[idx.addr()] = Node::Any {
-                    inputs: (input,),
+                    inputs: [input],
                     var_id: *var_map.get(var).unwrap(),
                     output: output,
                 };

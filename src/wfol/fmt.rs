@@ -13,20 +13,20 @@ impl<IDX: Indexing> Node<IDX> {
             Node::Variable { var_id, .. } => write!(f, "{}", tree.variables[var_id.addr()].name),
             Node::Not { inputs, .. } => {
                 write!(f, "\u{00AC}")?;
-                tree.nodes[inputs.0.addr()].fmt_recursive(tree, f)
+                tree.nodes[inputs[0].addr()].fmt_recursive(tree, f)
             }
             Node::And { inputs, .. } => {
                 write!(f, "(")?;
-                tree.nodes[inputs.0.addr()].fmt_recursive(tree, f)?;
+                tree.nodes[inputs[0].addr()].fmt_recursive(tree, f)?;
                 write!(f, "\u{2227}")?;
-                tree.nodes[inputs.1.addr()].fmt_recursive(tree, f)?;
+                tree.nodes[inputs[1].addr()].fmt_recursive(tree, f)?;
                 write!(f, ")")
             }
             Node::Or { inputs, .. } => {
                 write!(f, "(")?;
-                tree.nodes[inputs.0.addr()].fmt_recursive(tree, f)?;
+                tree.nodes[inputs[0].addr()].fmt_recursive(tree, f)?;
                 write!(f, "\u{2228}")?;
-                tree.nodes[inputs.1.addr()].fmt_recursive(tree, f)?;
+                tree.nodes[inputs[1].addr()].fmt_recursive(tree, f)?;
                 write!(f, ")")
             }
             Node::Predicate {
@@ -51,12 +51,12 @@ impl<IDX: Indexing> Node<IDX> {
             }
             Node::All { var_id, inputs, .. } => {
                 write!(f, "\u{2200}{}:(", tree.variables[var_id.addr()].name)?;
-                tree.nodes[inputs.0.addr()].fmt_recursive(tree, f)?;
+                tree.nodes[inputs[0].addr()].fmt_recursive(tree, f)?;
                 write!(f, ")")
             }
             Node::Any { var_id, inputs, .. } => {
                 write!(f, "\u{2203}{}:(", tree.variables[var_id.addr()].name)?;
-                tree.nodes[inputs.0.addr()].fmt_recursive(tree, f)?;
+                tree.nodes[inputs[0].addr()].fmt_recursive(tree, f)?;
                 write!(f, ")")
             }
             Node::None => panic!("Unkown node None"),

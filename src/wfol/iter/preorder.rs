@@ -29,21 +29,21 @@ impl<'a, IDX: Indexing> Iterator for IterPreorder<'a, IDX> {
         let idx = self.stack_idx.pop()?;
 
         match &self.tree.nodes[idx.addr()] {
-            Node::Not { inputs, .. } => self.stack_idx.push(inputs.0),
+            Node::Not { inputs, .. } => self.stack_idx.push(inputs[0]),
             Node::And { inputs, .. } => {
-                self.stack_idx.push(inputs.0);
-                self.stack_idx.push(inputs.1)
+                self.stack_idx.push(inputs[0]);
+                self.stack_idx.push(inputs[1])
             }
             Node::Or { inputs, .. } => {
-                self.stack_idx.push(inputs.0);
-                self.stack_idx.push(inputs.1)
+                self.stack_idx.push(inputs[0]);
+                self.stack_idx.push(inputs[1])
             }
             Node::All {
                 var_id: _, inputs, ..
-            } => self.stack_idx.push(inputs.0),
+            } => self.stack_idx.push(inputs[0]),
             Node::Any {
                 var_id: _, inputs, ..
-            } => self.stack_idx.push(inputs.0),
+            } => self.stack_idx.push(inputs[0]),
             _ => {}
         }
         Some(&self.tree.nodes[idx.addr()])
