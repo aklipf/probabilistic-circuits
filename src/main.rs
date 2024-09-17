@@ -3,12 +3,14 @@ mod wfol;
 use wfol::expr::*;
 use wfol::index::Indexing;
 use wfol::nnf::to_nnf;
+use wfol::node::Node;
 use wfol::tree::*;
 
 use std::mem;
 
 fn main() {
-    let expr = not(all(
+
+    /*let expr = not(all(
         "x",
         any(
             "y",
@@ -28,11 +30,5 @@ fn main() {
     println!("{tree:#?}");
     println!("{tree}");
 
-    to_nnf(&mut tree);
+    to_nnf(&mut tree);*/
 }
-
-/*
-(¬(¬A∧B)∨C)⇒test(x, y)
-¬(¬(¬A∧B)∨C)∨test(x, y)
-((¬A∧B)∧¬C)∨test(x, y)
-*/

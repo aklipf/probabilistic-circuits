@@ -1,11 +1,10 @@
 use super::expr::Expression;
 use super::index::Indexing;
+use super::node::Node;
 
-use core::panic;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Debug;
-use std::slice;
 
 #[derive(Debug)]
 pub struct Variable {
@@ -16,139 +15,6 @@ pub struct Variable {
 pub struct Predicate {
     pub(super) name: String,
     pub(super) order: usize,
-}
-
-#[derive(Clone, Debug)]
-pub enum Node<IDX: Indexing> {
-    Variable {
-        output: IDX,
-        var_id: IDX,
-    },
-    Not {
-        output: IDX,
-        inputs: [IDX; 1],
-    },
-    And {
-        output: IDX,
-        inputs: [IDX; 2],
-    },
-    Or {
-        output: IDX,
-        inputs: [IDX; 2],
-    },
-    Predicate {
-        output: IDX,
-        pred_id: IDX,
-        next_id: IDX,
-    },
-    PredicateVariable {
-        previous_id: IDX,
-        var_id: IDX,
-        next_id: IDX,
-    },
-    All {
-        output: IDX,
-        var_id: IDX,
-        inputs: [IDX; 1],
-    },
-    Any {
-        output: IDX,
-        var_id: IDX,
-        inputs: [IDX; 1],
-    },
-    None,
-}
-
-impl<IDX: Indexing> Default for Node<IDX> {
-    fn default() -> Self {
-        Self::None
-    }
-}
-
-impl<IDX: Indexing> Node<IDX> {
-    pub(super) fn childs(&self) -> &[IDX] {
-        match self {
-            Node::Not { inputs, .. } => inputs,
-            Node::And { inputs, .. } => inputs,
-            Node::Or { inputs, .. } => inputs,
-            Node::Predicate { next_id, .. } => {
-                if next_id.is_none() {
-                    &[]
-                } else {
-                    slice::from_ref(next_id)
-                }
-            }
-            Node::PredicateVariable { next_id, .. } => {
-                if next_id.is_none() {
-                    &[]
-                } else {
-                    slice::from_ref(next_id)
-                }
-            }
-            Node::All { inputs, .. } => inputs,
-            Node::Any { inputs, .. } => inputs,
-            _ => &[],
-        }
-    }
-
-    pub(super) fn parent(&self) -> IDX {
-        match self {
-            Node::Variable { output, .. } => *output,
-            Node::Not { output, .. } => *output,
-            Node::And { output, .. } => *output,
-            Node::Or { output, .. } => *output,
-            Node::Predicate { output, .. } => *output,
-            Node::PredicateVariable { previous_id, .. } => *previous_id,
-            Node::All { output, .. } => *output,
-            Node::Any { output, .. } => *output,
-            Node::None => panic!("None nodes have no input"),
-        }
-    }
-
-    pub(super) fn replace_input(&mut self, old: IDX, new: IDX) {
-        match self {
-            Node::Variable { .. } => panic!("Variable nodes have no input"),
-            Node::Not { inputs, .. } => {
-                assert_eq!(old, inputs[0], "old IDX didn't correspond to any input");
-                inputs[0] = new;
-            }
-            Node::And { inputs, .. } => {
-                if old == inputs[0] {
-                    inputs[0] = new;
-                } else if old == inputs[1] {
-                    inputs[1] = new;
-                } else {
-                    panic!("old IDX didn't correspond to any input")
-                }
-            }
-            Node::Or { inputs, .. } => {
-                if old == inputs[0] {
-                    inputs[0] = new;
-                } else if old == inputs[1] {
-                    inputs[1] = new;
-                } else {
-                    panic!("old IDX didn't correspond to any input")
-                }
-            }
-            Node::Predicate { next_id, .. } => {
-                assert_eq!(old, *next_id, "old IDX didn't correspond to any input");
-                *next_id = new;
-            }
-            Node::PredicateVariable { next_id, .. } => {
-                assert_eq!(old, *next_id, "old IDX didn't correspond to any input");
-                *next_id = new;
-            }
-            Node::All { inputs, .. } => {
-                assert_eq!(old, inputs[0], "old IDX didn't correspond to any input");
-                inputs[0] = new;
-            }
-            Node::Any { inputs, .. } => {
-                assert_eq!(old, inputs[0], "old IDX didn't correspond to any input");
-                inputs[0] = new;
-            }
-            Node::None => panic!("None nodes have no input"),
-        }
-    }
 }
 
 #[derive(Default, Debug)]

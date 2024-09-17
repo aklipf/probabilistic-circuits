@@ -11,6 +11,14 @@ pub trait Indexing: Copy + Clone + Debug + PartialEq {
         *self == Self::None
     }
 
+    fn unlink(&mut self) {
+        *self = Self::None
+    }
+
+    fn link(&mut self, other: Self) {
+        *self = other
+    }
+
     fn offset<T: PrimInt>(&self, n: T) -> Self {
         Self::from((self.addr() as isize + n.to_isize().unwrap()) as usize)
     }

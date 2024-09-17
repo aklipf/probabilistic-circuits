@@ -1,6 +1,7 @@
 use crate::wfol::index::Indexing;
 
-use super::super::tree::{Node, Tree};
+use super::super::node::Node;
+use super::super::tree::Tree;
 
 pub trait IntoPreorderIterator {
     type Iter;

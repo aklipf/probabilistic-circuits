@@ -1,4 +1,5 @@
 use super::index::Indexing;
+use super::node::Node;
 use super::tree::*;
 
 use std::fmt::Display;
