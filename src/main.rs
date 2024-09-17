@@ -1,24 +1,34 @@
 mod wfol;
 
-use wfol::nnf::*;
+use wfol::expr::*;
+use wfol::index::Indexing;
+use wfol::nnf::to_nnf;
 use wfol::tree::*;
 
+use std::mem;
+
 fn main() {
-    let expr = all(
-        var("x"),
+    let expr = not(all(
+        "x",
         any(
-            var("y"),
+            "y",
             imply(
                 or(not(and(not(var("A")), var("B"))), var("C")),
-                predi("test", &["x", "y"]),
+                predicate("test", &["x", "y"]),
             ),
         ),
-    );
+    ));
+    let mut tree: Tree = expr.into();
 
-    println!("{expr}");
+    println!("{tree:#?}");
+    println!("{tree}");
 
-    let nnf = to_nnf(&expr.into());
-    println!("{nnf}");
+    tree.remove(8);
+
+    println!("{tree:#?}");
+    println!("{tree}");
+
+    to_nnf(&mut tree);
 }
 
 /*

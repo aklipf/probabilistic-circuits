@@ -1,100 +1,84 @@
+use super::index::Indexing;
 use super::tree::*;
 
 use std::fmt::Display;
-use std::*;
 
-impl Display for Node {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl<IDX: Indexing> Node<IDX> {
+    pub(super) fn fmt_recursive(
+        &self,
+        tree: &Tree,
+        f: &mut std::fmt::Formatter,
+    ) -> std::fmt::Result {
         match self {
-            Node::Var(x) => x.fmt(f),
-            Node::Weight(x) => x.fmt(f),
-            Node::Not(x) => x.fmt(f),
-            Node::And(x) => x.fmt(f),
-            Node::Or(x) => x.fmt(f),
-            Node::Imply(x) => x.fmt(f),
-            Node::Equivalent(x) => x.fmt(f),
-            Node::Predicate(x) => x.fmt(f),
-            Node::Any(x) => x.fmt(f),
-            Node::All(x) => x.fmt(f),
+            Node::Variable { var_id, .. } => write!(f, "{}", tree.variables[var_id.addr()].name),
+            Node::Not { inputs, .. } => {
+                write!(f, "\u{00AC}")?;
+                tree.nodes[inputs.0.addr()].fmt_recursive(tree, f)
+            }
+            Node::And { inputs, .. } => {
+                write!(f, "(")?;
+                tree.nodes[inputs.0.addr()].fmt_recursive(tree, f)?;
+                write!(f, "\u{2227}")?;
+                tree.nodes[inputs.1.addr()].fmt_recursive(tree, f)?;
+                write!(f, ")")
+            }
+            Node::Or { inputs, .. } => {
+                write!(f, "(")?;
+                tree.nodes[inputs.0.addr()].fmt_recursive(tree, f)?;
+                write!(f, "\u{2228}")?;
+                tree.nodes[inputs.1.addr()].fmt_recursive(tree, f)?;
+                write!(f, ")")
+            }
+            Node::Predicate {
+                pred_id, next_id, ..
+            } => {
+                write!(f, "{}(", tree.predicates[pred_id.addr()].name)?;
+                if next_id.is_none() {
+                    write!(f, ")")
+                } else {
+                    tree.nodes[next_id.addr()].fmt_recursive(tree, f)
+                }
+            }
+            Node::PredicateVariable {
+                var_id, next_id, ..
+            } => {
+                if next_id.is_none() {
+                    write!(f, "{})", tree.variables[var_id.addr()].name)
+                } else {
+                    write!(f, "{}, ", tree.variables[var_id.addr()].name)?;
+                    tree.nodes[next_id.addr()].fmt_recursive(tree, f)
+                }
+            }
+            Node::All { var_id, inputs, .. } => {
+                write!(f, "\u{2200}{}:(", tree.variables[var_id.addr()].name)?;
+                tree.nodes[inputs.0.addr()].fmt_recursive(tree, f)?;
+                write!(f, ")")
+            }
+            Node::Any { var_id, inputs, .. } => {
+                write!(f, "\u{2203}{}:(", tree.variables[var_id.addr()].name)?;
+                tree.nodes[inputs.0.addr()].fmt_recursive(tree, f)?;
+                write!(f, ")")
+            }
+            Node::None => panic!("Unkown node None"),
         }
     }
 }
 
-impl Display for Var {
+impl Display for Tree {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.name)
+        self.nodes[self.output.addr()].fmt_recursive(&self, f)
     }
 }
 
-impl Display for Weight {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}\u{2219}{}", self.weight, self.child)
-    }
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-impl Display for Not {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "\u{00AC}{}", self.child)
-    }
-}
+    use super::super::expr::*;
 
-impl Display for And {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({}\u{2227}{})", self.left, self.right)
-    }
-}
-
-impl Display for Or {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({}\u{2228}{})", self.left, self.right)
-    }
-}
-
-impl Display for Imply {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}\u{21D2}{}", self.left, self.right)
-    }
-}
-
-impl Display for Equivalent {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}\u{21D4}{}", self.left, self.right)
-    }
-}
-
-impl Display for Predicate {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match write!(f, "{}(", self.name) {
-            Ok(_) => {}
-            Err(e) => return Err(e),
-        };
-
-        if self.vars.len() > 0 {
-            match self.vars[0].fmt(f) {
-                Ok(_) => {}
-                Err(e) => return Err(e),
-            };
-        }
-
-        for var in &self.vars[1..] {
-            match write!(f, ", {}", var) {
-                Ok(_) => {}
-                Err(e) => return Err(e),
-            };
-        }
-
-        write!(f, ")")
-    }
-}
-
-impl Display for Any {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "\u{2203}{}:{}", self.var, self.expr)
-    }
-}
-
-impl Display for All {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "\u{2200}{}:{}", self.var, self.expr)
+    #[test]
+    fn test_fmt() {
+        let tree: Tree = all("x", any("y", and(or(not(var("A")), var("x")), var("y")))).into();
+        assert_eq!(format!("{tree}"), "∀x:(∃y:(((¬A∨x)∧y)))");
     }
 }
