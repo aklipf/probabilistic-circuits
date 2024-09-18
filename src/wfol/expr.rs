@@ -1,4 +1,12 @@
-use super::{index::Indexing, tree::Tree};
+use std::collections::{HashMap, HashSet};
+
+use super::{
+    builder::Builder,
+    index::Indexing,
+    mapping::{Mapping, VerifiedMapping},
+    pool::Pool,
+    tree::Tree,
+};
 
 pub fn var(name: &str) -> Expression {
     Expression::Variable {
@@ -87,9 +95,93 @@ pub enum Expression {
 
 impl<IDX: Indexing + Default> From<Expression> for Tree<IDX> {
     fn from(expr: Expression) -> Self {
-        let mut tree: Tree<IDX> = Default::default();
-        tree.builder(|builder| builder.from_expr(&expr));
+        let mut var_set: HashSet<String> = Default::default();
+        let mut pred_map: HashMap<String, usize> = Default::default();
+
+        Expression::recursive_collect(&mut var_set, &mut pred_map, &expr);
+
+        let mut tree: Tree<IDX> = Tree::new(var_set, pred_map);
+
+        let map = VerifiedMapping::<IDX>::from(&tree);
+
+        tree.builder(|builder| Expression::push_recursive(builder, &expr, &map));
         tree
+    }
+}
+
+impl Expression {
+    fn push_recursive<IDX: Indexing, T: Mapping<IDX>, P: Pool<IDX = IDX>>(
+        builder: &mut Builder<IDX, P>,
+        expr: &Expression,
+        map: &T,
+    ) -> IDX {
+        match expr {
+            Expression::Variable { name } => builder.var(map.get_var(name)),
+            Expression::Predicate { name, vars } => {
+                builder.pred(map.get_pred(name), &map.get_vars(vars)[..])
+            }
+            Expression::Not { expr } => builder.not(|inner| Self::push_recursive(inner, expr, map)),
+            Expression::And { left, right } => builder.and(
+                |inner| Self::push_recursive(inner, left, map),
+                |inner| Self::push_recursive(inner, right, map),
+            ),
+            Expression::Or { left, right } => builder.or(
+                |inner| Self::push_recursive(inner, left, map),
+                |inner| Self::push_recursive(inner, right, map),
+            ),
+            Expression::All { var, expr } => builder.all(map.get_var(var), |inner| {
+                Self::push_recursive(inner, expr, map)
+            }),
+            Expression::Any { var, expr } => builder.any(map.get_var(var), |inner| {
+                Self::push_recursive(inner, expr, map)
+            }),
+        }
+    }
+
+    fn recursive_collect(
+        var_set: &mut HashSet<String>,
+        pred_map: &mut HashMap<String, usize>,
+        expression: &Expression,
+    ) {
+        match expression {
+            Expression::Variable { name } => {
+                var_set.insert(name.clone());
+            }
+            Expression::Predicate { name, vars } => {
+                match pred_map.get(name) {
+                    Some(x) => assert_eq!(
+                        vars.len(),
+                        *x,
+                        "order of the {name} predicate is inconsistent ({} != {})",
+                        vars.len(),
+                        *x
+                    ),
+                    None => {
+                        pred_map.insert(name.clone(), vars.len());
+                    }
+                }
+                var_set.extend(vars.iter().map(|x| x.clone()));
+            }
+            Expression::Not { expr } => {
+                Self::recursive_collect(var_set, pred_map, expr);
+            }
+            Expression::And { left, right } => {
+                Self::recursive_collect(var_set, pred_map, left);
+                Self::recursive_collect(var_set, pred_map, right);
+            }
+            Expression::Or { left, right } => {
+                Self::recursive_collect(var_set, pred_map, left);
+                Self::recursive_collect(var_set, pred_map, right);
+            }
+            Expression::All { var, expr } => {
+                var_set.insert(var.clone());
+                Self::recursive_collect(var_set, pred_map, expr);
+            }
+            Expression::Any { var, expr } => {
+                var_set.insert(var.clone());
+                Self::recursive_collect(var_set, pred_map, expr);
+            }
+        }
     }
 }
 

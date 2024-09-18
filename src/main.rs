@@ -1,12 +1,7 @@
 mod wfol;
 
 use wfol::expr::*;
-use wfol::index::Indexing;
-use wfol::nnf::to_nnf;
-use wfol::node::Node;
 use wfol::tree::*;
-
-use std::mem;
 
 fn main() {
     let expr = not(all(
@@ -19,7 +14,7 @@ fn main() {
             ),
         ),
     ));
-    let mut tree: Tree = expr.into();
+    let tree: Tree = expr.into();
 
     println!("{tree:#?}");
     println!("{tree}");
