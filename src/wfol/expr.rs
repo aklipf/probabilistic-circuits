@@ -88,8 +88,7 @@ pub enum Expression {
 impl<IDX: Indexing + Default> From<Expression> for Tree<IDX> {
     fn from(expr: Expression) -> Self {
         let mut tree: Tree<IDX> = Default::default();
-        let (var_map, pred_map) = tree.init(&expr);
-        tree.output = tree.push_recursive(&expr, IDX::None, &var_map, &pred_map);
+        tree.builder(|builder| builder.from_expr(&expr));
         tree
     }
 }

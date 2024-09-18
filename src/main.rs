@@ -9,8 +9,7 @@ use wfol::tree::*;
 use std::mem;
 
 fn main() {
-
-    /*let expr = not(all(
+    let expr = not(all(
         "x",
         any(
             "y",
@@ -25,7 +24,7 @@ fn main() {
     println!("{tree:#?}");
     println!("{tree}");
 
-    tree.remove(8);
+    /*tree.remove(8);
 
     println!("{tree:#?}");
     println!("{tree}");

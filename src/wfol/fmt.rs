@@ -1,5 +1,5 @@
 use super::index::Indexing;
-use super::node::Node;
+use super::node::{Node, Symbols};
 use super::tree::*;
 
 use std::fmt::Display;
@@ -10,57 +10,52 @@ impl<IDX: Indexing> Node<IDX> {
         tree: &Tree,
         f: &mut std::fmt::Formatter,
     ) -> std::fmt::Result {
-        match self {
-            Node::Variable { var_id, .. } => write!(f, "{}", tree.variables[var_id.addr()].name),
-            Node::Not { inputs, .. } => {
+        match self.symbol() {
+            Symbols::Variable { var_id } => write!(f, "{}", tree.variables[var_id.addr()]),
+            Symbols::Not => {
                 write!(f, "\u{00AC}")?;
-                tree.nodes[inputs[0].addr()].fmt_recursive(tree, f)
+                tree.nodes[self.childs()[0].addr()].fmt_recursive(tree, f)
             }
-            Node::And { inputs, .. } => {
+            Symbols::And => {
                 write!(f, "(")?;
-                tree.nodes[inputs[0].addr()].fmt_recursive(tree, f)?;
+                tree.nodes[self.childs()[0].addr()].fmt_recursive(tree, f)?;
                 write!(f, "\u{2227}")?;
-                tree.nodes[inputs[1].addr()].fmt_recursive(tree, f)?;
+                tree.nodes[self.childs()[1].addr()].fmt_recursive(tree, f)?;
                 write!(f, ")")
             }
-            Node::Or { inputs, .. } => {
+            Symbols::Or => {
                 write!(f, "(")?;
-                tree.nodes[inputs[0].addr()].fmt_recursive(tree, f)?;
+                tree.nodes[self.childs()[0].addr()].fmt_recursive(tree, f)?;
                 write!(f, "\u{2228}")?;
-                tree.nodes[inputs[1].addr()].fmt_recursive(tree, f)?;
+                tree.nodes[self.childs()[1].addr()].fmt_recursive(tree, f)?;
                 write!(f, ")")
             }
-            Node::Predicate {
-                pred_id, next_id, ..
-            } => {
-                write!(f, "{}(", tree.predicates[pred_id.addr()].name)?;
-                if next_id.is_none() {
+            Symbols::Predicate { pred_id } => {
+                write!(f, "{}(", tree.predicates[pred_id.addr()].0)?;
+                if self.num_childs() == 0 {
                     write!(f, ")")
                 } else {
-                    tree.nodes[next_id.addr()].fmt_recursive(tree, f)
+                    let mut node = &tree.nodes[self.childs()[0].addr()];
+                    node.fmt_recursive(tree, f)?;
+                    while node.num_childs() != 0 {
+                        node = &tree.nodes[node.childs()[0].addr()];
+                        write!(f, ", ")?;
+                        node.fmt_recursive(tree, f)?;
+                    }
+                    write!(f, ")")
                 }
             }
-            Node::PredicateVariable {
-                var_id, next_id, ..
-            } => {
-                if next_id.is_none() {
-                    write!(f, "{})", tree.variables[var_id.addr()].name)
-                } else {
-                    write!(f, "{}, ", tree.variables[var_id.addr()].name)?;
-                    tree.nodes[next_id.addr()].fmt_recursive(tree, f)
-                }
-            }
-            Node::All { var_id, inputs, .. } => {
-                write!(f, "\u{2200}{}:(", tree.variables[var_id.addr()].name)?;
-                tree.nodes[inputs[0].addr()].fmt_recursive(tree, f)?;
+            Symbols::All { var_id } => {
+                write!(f, "\u{2200}{}:(", tree.variables[var_id.addr()])?;
+                tree.nodes[self.childs()[0].addr()].fmt_recursive(tree, f)?;
                 write!(f, ")")
             }
-            Node::Any { var_id, inputs, .. } => {
-                write!(f, "\u{2203}{}:(", tree.variables[var_id.addr()].name)?;
-                tree.nodes[inputs[0].addr()].fmt_recursive(tree, f)?;
+            Symbols::Any { var_id } => {
+                write!(f, "\u{2203}{}:(", tree.variables[var_id.addr()])?;
+                tree.nodes[self.childs()[0].addr()].fmt_recursive(tree, f)?;
                 write!(f, ")")
             }
-            Node::None => panic!("Unkown node None"),
+            Symbols::None => panic!("Unkown node None"),
         }
     }
 }
@@ -81,5 +76,17 @@ mod tests {
     fn test_fmt() {
         let tree: Tree = all("x", any("y", and(or(not(var("A")), var("x")), var("y")))).into();
         assert_eq!(format!("{tree}"), "∀x:(∃y:(((¬A∨x)∧y)))");
+        let tree: Tree = all(
+            "x",
+            any(
+                "y",
+                and(
+                    predicate("pred_x", &["x"]),
+                    predicate("pred_xy", &["x", "y"]),
+                ),
+            ),
+        )
+        .into();
+        assert_eq!(format!("{tree}"), "∀x:(∃y:((pred_x(x)∧pred_xy(x, y))))");
     }
 }

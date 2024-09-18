@@ -28,25 +28,8 @@ impl<'a, IDX: Indexing> Iterator for IterPreorder<'a, IDX> {
     type Item = &'a Node<IDX>;
     fn next(&mut self) -> Option<Self::Item> {
         let idx = self.stack_idx.pop()?;
-
-        match &self.tree.nodes[idx.addr()] {
-            Node::Not { inputs, .. } => self.stack_idx.push(inputs[0]),
-            Node::And { inputs, .. } => {
-                self.stack_idx.push(inputs[0]);
-                self.stack_idx.push(inputs[1])
-            }
-            Node::Or { inputs, .. } => {
-                self.stack_idx.push(inputs[0]);
-                self.stack_idx.push(inputs[1])
-            }
-            Node::All {
-                var_id: _, inputs, ..
-            } => self.stack_idx.push(inputs[0]),
-            Node::Any {
-                var_id: _, inputs, ..
-            } => self.stack_idx.push(inputs[0]),
-            _ => {}
-        }
+        let childs = self.tree.nodes[idx.addr()].childs();
+        self.stack_idx.extend_from_slice(childs);
         Some(&self.tree.nodes[idx.addr()])
     }
 }

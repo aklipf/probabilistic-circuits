@@ -1,8 +1,6 @@
 use super::index::Indexing;
 
-use core::panic;
 use std::fmt::Debug;
-use std::slice;
 
 #[derive(Clone, Debug)]
 pub enum Symbols<IDX: Indexing> {
@@ -18,9 +16,9 @@ pub enum Symbols<IDX: Indexing> {
 
 #[derive(Clone, Debug)]
 pub struct Node<IDX: Indexing> {
-    parent: IDX,
-    childs: [IDX; 2],
-    symbol: Symbols<IDX>,
+    pub(super) parent: IDX,
+    pub(super) childs: [IDX; 2],
+    pub(super) symbol: Symbols<IDX>,
 }
 
 impl<IDX: Indexing> Default for Node<IDX> {
