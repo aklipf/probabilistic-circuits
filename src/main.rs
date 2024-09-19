@@ -1,18 +1,26 @@
 mod wfol;
 
+use wfol::expr::*;
+use wfol::nnf::to_nnf;
 use wfol::tree::*;
 
 fn main() {
-    let expr = all(
-        var("x"),
+    let expr = not(all(
+        "x",
         any(
-            var("y"),
+            "y",
             imply(
-                or(not(and(not(var("A")), var("B"))), weight(0.5, var("C"))),
-                predi("test", &["x", "y"]),
+                or(not(and(not(var("A")), var("B"))), var("C")),
+                predicate("test", &["x", "y"]),
             ),
         ),
-    );
+    ));
+    let mut tree: Tree = expr.into();
 
-    println!("{expr}");
+    println!("{tree:#?}");
+    println!("{tree}");
+
+    to_nnf(&mut tree);
+
+    println!("{tree}");
 }

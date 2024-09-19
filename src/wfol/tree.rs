@@ -1,215 +1,79 @@
-use std::fmt::Display;
-use std::*;
+use super::builder::Builder;
+use super::index::Indexing;
+use super::node::Node;
+use super::pool::Recycle;
+use std::fmt::Debug;
+use std::ops::{Index, IndexMut};
 
-pub trait Expr: Clone + Into<Node> + Display {}
-
-#[derive(Clone)]
-pub struct Var {
-    pub(super) name: String,
+#[derive(Default, Debug)]
+pub struct Tree<IDX: Indexing = u32> {
+    pub(crate) variables: Vec<String>,
+    pub(crate) predicates: Vec<(String, usize)>,
+    pub(crate) nodes: Vec<Node<IDX>>,
+    pub(crate) output: IDX,
 }
 
-#[derive(Clone)]
-pub struct Weight {
-    pub(super) weight: f32,
-    pub(super) child: Box<Node>,
-}
+impl<IDX: Indexing> Tree<IDX> {
+    pub fn new<T: IntoIterator<Item = String>, U: IntoIterator<Item = (String, usize)>>(
+        variables: T,
+        predicates: U,
+    ) -> Self {
+        Tree {
+            variables: variables.into_iter().collect(),
+            predicates: predicates.into_iter().collect(),
+            nodes: Default::default(),
+            output: IDX::NONE,
+        }
+    }
 
-#[derive(Clone)]
-pub struct Not {
-    pub(super) child: Box<Node>,
-}
+    pub fn builder<F: Fn(&mut Builder<'_, IDX, Self>) -> IDX>(&mut self, build: F) {
+        self.output = build(&mut Builder { allocator: self })
+    }
 
-#[derive(Clone)]
-pub struct And {
-    pub(super) left: Box<Node>,
-    pub(super) right: Box<Node>,
-}
+    pub fn replace<
+        F: Fn(&mut Recycle<'_, IDX>),
+        G: Fn(&mut Builder<'_, IDX, Recycle<'_, IDX>>) -> IDX,
+    >(
+        &mut self,
+        remove: F,
+        build: G,
+    ) -> IDX {
+        let (root, output) = {
+            let mut recycle = Recycle::new(self);
+            remove(&mut recycle);
 
-#[derive(Clone)]
-pub struct Or {
-    pub(super) left: Box<Node>,
-    pub(super) right: Box<Node>,
-}
+            (
+                recycle.root,
+                build(&mut Builder {
+                    allocator: &mut recycle,
+                }),
+            )
+        };
 
-#[derive(Clone)]
-pub struct Imply {
-    pub(super) left: Box<Node>,
-    pub(super) right: Box<Node>,
-}
-
-#[derive(Clone)]
-pub struct Equivalent {
-    pub(super) left: Box<Node>,
-    pub(super) right: Box<Node>,
-}
-
-#[derive(Clone)]
-pub struct Predicate {
-    pub(super) name: String,
-    pub(super) vars: Vec<Var>,
-}
-
-#[derive(Clone)]
-pub struct Any {
-    pub(super) var: Box<Var>,
-    pub(super) expr: Box<Node>,
-}
-
-#[derive(Clone)]
-pub struct All {
-    pub(super) var: Box<Var>,
-    pub(super) expr: Box<Node>,
-}
-
-#[derive(Clone)]
-pub enum Node {
-    Var(Var),
-    Weight(Weight),
-    Not(Not),
-    And(And),
-    Or(Or),
-    Imply(Imply),
-    Equivalent(Equivalent),
-    Predicate(Predicate),
-    Any(Any),
-    All(All),
-}
-
-impl Expr for Var {}
-impl Expr for Weight {}
-impl Expr for Not {}
-impl Expr for And {}
-impl Expr for Or {}
-impl Expr for Imply {}
-impl Expr for Equivalent {}
-impl Expr for Predicate {}
-impl Expr for Any {}
-impl Expr for All {}
-
-impl From<Var> for Node {
-    fn from(var: Var) -> Self {
-        Node::Var(var)
+        if root.is_addr() {
+            self[output].parent = root;
+            self[root]
+                .input_replace(IDX::NONE, output)
+                .expect("Tree error");
+        } else {
+            self.output = output;
+        }
+        output
     }
 }
 
-impl From<Weight> for Node {
-    fn from(weigth: Weight) -> Self {
-        Node::Weight(weigth)
+impl<IDX: Indexing> Index<IDX> for Tree<IDX> {
+    type Output = Node<IDX>;
+
+    #[inline]
+    fn index(&self, index: IDX) -> &Self::Output {
+        &self.nodes[index.addr()]
     }
 }
 
-impl From<Not> for Node {
-    fn from(not: Not) -> Self {
-        Node::Not(not)
-    }
-}
-
-impl From<And> for Node {
-    fn from(and: And) -> Self {
-        Node::And(and)
-    }
-}
-
-impl From<Or> for Node {
-    fn from(or: Or) -> Self {
-        Node::Or(or)
-    }
-}
-
-impl From<Imply> for Node {
-    fn from(imply: Imply) -> Self {
-        Node::Imply(imply)
-    }
-}
-
-impl From<Equivalent> for Node {
-    fn from(equiv: Equivalent) -> Self {
-        Node::Equivalent(equiv)
-    }
-}
-
-impl From<Predicate> for Node {
-    fn from(pred: Predicate) -> Self {
-        Node::Predicate(pred)
-    }
-}
-
-impl From<Any> for Node {
-    fn from(any: Any) -> Self {
-        Node::Any(any)
-    }
-}
-
-impl From<All> for Node {
-    fn from(all: All) -> Self {
-        Node::All(all)
-    }
-}
-
-pub fn var(name: &str) -> Var {
-    Var {
-        name: name.to_string(),
-    }
-}
-
-pub fn weight<T: Into<Node>>(weight: f32, expr: T) -> Weight {
-    Weight {
-        weight: weight,
-        child: Box::new(expr.into()),
-    }
-}
-
-pub fn not<T: Into<Node>>(expr: T) -> Not {
-    Not {
-        child: Box::new(expr.into()),
-    }
-}
-
-pub fn and<T: Into<Node>, U: Into<Node>>(left: T, right: U) -> And {
-    And {
-        left: Box::new(left.into()),
-        right: Box::new(right.into()),
-    }
-}
-
-pub fn or<T: Into<Node>, U: Into<Node>>(left: T, right: U) -> Or {
-    Or {
-        left: Box::new(left.into()),
-        right: Box::new(right.into()),
-    }
-}
-
-pub fn imply<T: Into<Node>, U: Into<Node>>(left: T, right: U) -> Imply {
-    Imply {
-        left: Box::new(left.into()),
-        right: Box::new(right.into()),
-    }
-}
-
-pub fn equiv<T: Into<Node>, U: Into<Node>>(left: T, right: U) -> Equivalent {
-    Equivalent {
-        left: Box::new(left.into()),
-        right: Box::new(right.into()),
-    }
-}
-
-pub fn predi(name: &str, vars: &[&str]) -> Predicate {
-    Predicate {
-        name: name.to_string(),
-        vars: vars.iter().map(|x| var(x)).collect(),
-    }
-}
-
-pub fn any<T: Into<Node>>(var: Var, expr: T) -> Any {
-    Any {
-        var: Box::new(var),
-        expr: Box::new(expr.into()),
-    }
-}
-
-pub fn all<T: Into<Node>>(var: Var, expr: T) -> All {
-    All {
-        var: Box::new(var),
-        expr: Box::new(expr.into()),
+impl<IDX: Indexing> IndexMut<IDX> for Tree<IDX> {
+    #[inline]
+    fn index_mut<'a>(&'a mut self, index: IDX) -> &'a mut Node<IDX> {
+        &mut self.nodes[index.addr()]
     }
 }
