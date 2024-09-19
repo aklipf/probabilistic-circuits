@@ -1,6 +1,7 @@
 mod wfol;
 
 use wfol::expr::*;
+use wfol::nnf::to_nnf;
 use wfol::tree::*;
 
 fn main() {
@@ -14,15 +15,12 @@ fn main() {
             ),
         ),
     ));
-    let tree: Tree = expr.into();
+    let mut tree: Tree = expr.into();
 
     println!("{tree:#?}");
     println!("{tree}");
 
-    /*tree.remove(8);
+    to_nnf(&mut tree);
 
-    println!("{tree:#?}");
     println!("{tree}");
-
-    to_nnf(&mut tree);*/
 }

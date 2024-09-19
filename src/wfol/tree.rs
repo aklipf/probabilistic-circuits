@@ -1,6 +1,7 @@
 use super::builder::Builder;
 use super::index::Indexing;
 use super::node::Node;
+use super::pool::Recycle;
 use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
@@ -21,7 +22,7 @@ impl<IDX: Indexing> Tree<IDX> {
             variables: variables.into_iter().collect(),
             predicates: predicates.into_iter().collect(),
             nodes: Default::default(),
-            output: IDX::None,
+            output: IDX::NONE,
         }
     }
 
@@ -29,33 +30,49 @@ impl<IDX: Indexing> Tree<IDX> {
         self.output = build(&mut Builder { allocator: self })
     }
 
-    pub(super) fn push(&mut self, node: Node<IDX>) -> IDX {
-        let idx = IDX::from(self.nodes.len());
-        self.nodes.push(node);
-        idx
-    }
+    pub fn replace<
+        F: Fn(&mut Recycle<'_, IDX>),
+        G: Fn(&mut Builder<'_, IDX, Recycle<'_, IDX>>) -> IDX,
+    >(
+        &mut self,
+        remove: F,
+        build: G,
+    ) -> IDX {
+        let (root, output) = {
+            let mut recycle = Recycle::new(self);
+            remove(&mut recycle);
 
-    pub(super) fn allocate_n(&mut self, n: usize) -> IDX {
-        let idx = IDX::from(self.nodes.len());
-        self.nodes.resize(self.nodes.len() + n, Default::default());
-        idx
-    }
+            (
+                recycle.root,
+                build(&mut Builder {
+                    allocator: &mut recycle,
+                }),
+            )
+        };
 
-    pub(super) fn replace(&mut self, idx: IDX, node: Node<IDX>) -> IDX {
-        self.nodes[idx.addr()] = node;
-        idx
+        if root.is_addr() {
+            self[output].parent = root;
+            self[root]
+                .input_replace(IDX::NONE, output)
+                .expect("Tree error");
+        } else {
+            self.output = output;
+        }
+        output
     }
 }
 
 impl<IDX: Indexing> Index<IDX> for Tree<IDX> {
     type Output = Node<IDX>;
 
+    #[inline]
     fn index(&self, index: IDX) -> &Self::Output {
         &self.nodes[index.addr()]
     }
 }
 
 impl<IDX: Indexing> IndexMut<IDX> for Tree<IDX> {
+    #[inline]
     fn index_mut<'a>(&'a mut self, index: IDX) -> &'a mut Node<IDX> {
         &mut self.nodes[index.addr()]
     }

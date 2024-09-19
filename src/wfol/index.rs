@@ -2,17 +2,17 @@ use num_traits::PrimInt;
 use std::fmt::Debug;
 
 pub trait Indexing: Copy + Clone + Debug + PartialEq {
-    const None: Self;
+    const NONE: Self;
 
     fn addr(&self) -> usize;
     fn from<T: PrimInt>(addr: T) -> Self;
 
     fn is_none(&self) -> bool {
-        *self == Self::None
+        *self == Self::NONE
     }
 
     fn unlink(&mut self) {
-        *self = Self::None
+        *self = Self::NONE
     }
 
     fn link(&mut self, other: Self) {
@@ -29,7 +29,7 @@ pub trait Indexing: Copy + Clone + Debug + PartialEq {
 }
 
 impl Indexing for u16 {
-    const None: Self = u16::MAX;
+    const NONE: Self = u16::MAX;
 
     fn addr(&self) -> usize {
         *self as usize
@@ -41,7 +41,7 @@ impl Indexing for u16 {
 }
 
 impl Indexing for u32 {
-    const None: Self = u32::MAX;
+    const NONE: Self = u32::MAX;
 
     fn addr(&self) -> usize {
         *self as usize
@@ -53,7 +53,7 @@ impl Indexing for u32 {
 }
 
 impl Indexing for u64 {
-    const None: Self = u64::MAX;
+    const NONE: Self = u64::MAX;
 
     fn addr(&self) -> usize {
         *self as usize

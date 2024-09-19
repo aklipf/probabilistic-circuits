@@ -24,8 +24,8 @@ pub struct Node<IDX: Indexing> {
 impl<IDX: Indexing> Default for Node<IDX> {
     fn default() -> Self {
         Node {
-            parent: IDX::None,
-            childs: [IDX::None, IDX::None],
+            parent: IDX::NONE,
+            childs: [IDX::NONE, IDX::NONE],
             symbol: Symbols::None,
         }
     }

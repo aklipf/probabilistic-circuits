@@ -12,18 +12,19 @@ impl<'a, IDX: Indexing, P: Pool<IDX = IDX>> Builder<'a, IDX, P> {
     #[inline]
     fn push(&mut self, symbol: Symbols<IDX>) -> IDX {
         self.allocator.push(Node {
-            parent: IDX::None,
-            childs: [IDX::None, IDX::None],
+            parent: IDX::NONE,
+            childs: [IDX::NONE, IDX::NONE],
             symbol: symbol,
         })
     }
+
     #[inline]
     fn push_unary<F: Fn(&mut Self) -> IDX>(&mut self, symbol: Symbols<IDX>, inner: F) -> IDX {
         let inner_idx = inner(self);
 
         let idx = self.allocator.push(Node {
-            parent: IDX::None,
-            childs: [inner_idx, IDX::None],
+            parent: IDX::NONE,
+            childs: [inner_idx, IDX::NONE],
             symbol: symbol,
         });
 
@@ -43,7 +44,7 @@ impl<'a, IDX: Indexing, P: Pool<IDX = IDX>> Builder<'a, IDX, P> {
         let right_idx = right(self);
 
         let idx = self.allocator.push(Node {
-            parent: IDX::None,
+            parent: IDX::NONE,
             childs: [left_idx, right_idx],
             symbol: symbol,
         });
@@ -112,5 +113,10 @@ impl<'a, IDX: Indexing, P: Pool<IDX = IDX>> Builder<'a, IDX, P> {
     #[inline]
     pub fn any<F: Fn(&mut Self) -> IDX>(&mut self, var_id: IDX, inner: F) -> IDX {
         self.push_unary(Symbols::Any { var_id: var_id }, inner)
+    }
+
+    #[inline]
+    pub fn connect(&mut self, node_id: IDX) -> IDX {
+        node_id
     }
 }
