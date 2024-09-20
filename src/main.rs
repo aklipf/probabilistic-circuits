@@ -3,7 +3,7 @@ mod tree;
 
 use std::time::Instant;
 
-use io::cnf::load;
+use io::cnf::*;
 use tree::expr::*;
 use tree::nnf::to_nnf;
 use tree::tree::*;
@@ -29,11 +29,11 @@ fn main() {
     println!("{tree}");
 
     let start = Instant::now();
-    let tree = load::<u32>("aim-50-1_6-yes1-4.cnf".to_string()).unwrap();
+    let tree = load_file::<u32>("aim-50-1_6-yes1-4.cnf".to_string()).unwrap();
     let duration = start.elapsed();
     println!("{:?}", duration);
     let start = Instant::now();
-    let tree = load::<u32>("aim-100-1_6-no-1.cnf".to_string()).unwrap();
+    let tree = load_file::<u32>("aim-100-1_6-no-1.cnf".to_string()).unwrap();
     let duration = start.elapsed();
     println!("{:?}", duration);
     println!("{tree}");

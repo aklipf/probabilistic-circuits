@@ -1,7 +1,4 @@
-use core::panic;
-use regex::Captures;
 use regex::Regex;
-use std::env::VarError;
 use std::fs;
 
 use crate::tree::builder::Builder;
@@ -11,25 +8,28 @@ use crate::tree::mapping::VerifiedMapping;
 use crate::tree::pool::Pool;
 use crate::Tree;
 
-pub fn load<IDX: Indexing>(file_name: String) -> Result<Tree<IDX>, &'static str> {
+pub fn load_file<IDX: Indexing>(file_name: String) -> Result<Tree<IDX>, &'static str> {
     let contents = fs::read_to_string(file_name).expect("Not able to load file.");
+    load_string(contents)
+}
 
+pub fn load_string<IDX: Indexing>(cnf: String) -> Result<Tree<IDX>, &'static str> {
     let re_config =
         Regex::new(r"(?:^|\b)(?i:p)\s+(?i:cnf)\s+(?<vars>\d+)\s+(?<clauses>\d+)(?:$|\b)").unwrap();
     let re_remove_comments = Regex::new(r"(\p{L}\s.+)").unwrap();
-    let re_clauses_vars = Regex::new(r"(?:^|[^-\w])(?<not>-)?(?<id>\d+)\b").unwrap(); //\b+(?<id>-?\d+)\b+
+    let re_clauses_vars = Regex::new(r"(?:^|[^-\w])(?<not>-)?(?<id>\d+)\b").unwrap();
     let re_clauses_sep = Regex::new(r"\b+0\b+").unwrap();
 
     // get CNF config (nb of variables and clauses)
 
-    let Some(config) = re_config.captures(&contents) else {
+    let Some(config) = re_config.captures(&cnf) else {
         return Err("Cannot find the problem line");
     };
     let n_vars = config["vars"].parse::<usize>().unwrap();
     let n_clauses = config["clauses"].parse::<usize>().unwrap();
 
     // remove all the comments
-    let cleaned = re_remove_comments.replace_all(&contents, "");
+    let cleaned = re_remove_comments.replace_all(&cnf, "");
 
     // parse clauses
     let mut tree: Tree<IDX> = Tree::new(
