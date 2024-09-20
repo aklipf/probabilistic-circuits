@@ -10,7 +10,7 @@ pub trait Mapping<IDX: Indexing = u32> {
     fn get_vars(&self, names: &Vec<String>) -> Vec<IDX>;
 }
 
-pub(super) struct VerifiedMapping<IDX: Indexing> {
+pub(crate) struct VerifiedMapping<IDX: Indexing> {
     pub vars: HashMap<String, IDX>,
     pub preds: HashMap<String, IDX>,
 }

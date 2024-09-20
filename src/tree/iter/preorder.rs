@@ -1,4 +1,4 @@
-use crate::wfol::index::Indexing;
+use crate::tree::index::Indexing;
 
 use super::super::node::Node;
 use super::super::tree::Tree;
