@@ -11,7 +11,14 @@ impl<IDX: Indexing> Node<IDX> {
         f: &mut std::fmt::Formatter,
     ) -> std::fmt::Result {
         match self.symbol() {
-            Symbols::Variable { var_id } => write!(f, "{}", tree.variables[var_id.addr()]),
+            Symbols::Variable { var_id } => {
+                let vname = &tree.variables[var_id.addr()];
+                if vname.len() == 0 {
+                    write!(f, "Anon{}", var_id.addr())
+                } else {
+                    write!(f, "{}", vname)
+                }
+            }
             Symbols::Not => {
                 write!(f, "\u{00AC}")?;
                 tree.nodes[self.childs()[0].addr()].fmt_recursive(tree, f)
@@ -31,7 +38,14 @@ impl<IDX: Indexing> Node<IDX> {
                 write!(f, ")")
             }
             Symbols::Predicate { pred_id } => {
-                write!(f, "{}(", tree.predicates[pred_id.addr()].0)?;
+                let (pname, _) = &tree.predicates[pred_id.addr()];
+
+                if pname.len() == 0 {
+                    write!(f, "Anon{}(", pred_id.addr())?;
+                } else {
+                    write!(f, "{}(", pname)?;
+                }
+
                 if self.num_childs() == 0 {
                     write!(f, ")")
                 } else {
@@ -45,12 +59,12 @@ impl<IDX: Indexing> Node<IDX> {
                     write!(f, ")")
                 }
             }
-            Symbols::All { var_id } => {
+            Symbols::Every { var_id } => {
                 write!(f, "\u{2200}{}:(", tree.variables[var_id.addr()])?;
                 tree.nodes[self.childs()[0].addr()].fmt_recursive(tree, f)?;
                 write!(f, ")")
             }
-            Symbols::Any { var_id } => {
+            Symbols::Exist { var_id } => {
                 write!(f, "\u{2203}{}:(", tree.variables[var_id.addr()])?;
                 tree.nodes[self.childs()[0].addr()].fmt_recursive(tree, f)?;
                 write!(f, ")")
@@ -74,11 +88,11 @@ mod tests {
 
     #[test]
     fn test_fmt() {
-        let tree: Tree = all("x", any("y", and(or(not(var("A")), var("x")), var("y")))).into();
+        let tree: Tree = every("x", exist("y", and(or(not(var("A")), var("x")), var("y")))).into();
         assert_eq!(format!("{tree}"), "∀x:(∃y:(((¬A∨x)∧y)))");
-        let tree: Tree = all(
+        let tree: Tree = every(
             "x",
-            any(
+            exist(
                 "y",
                 and(
                     predicate("pred_x", &["x"]),

@@ -4,6 +4,10 @@ use crate::Tree;
 
 use super::index::Indexing;
 
+pub trait AddPredicate<IDX: Indexing> {
+    fn add_anon_predicate(&mut self, n: usize) -> IDX;
+}
+
 pub trait Mapping<IDX: Indexing = u32> {
     fn get_pred(&self, name: &String) -> IDX;
     fn get_var(&self, name: &String) -> IDX;
@@ -51,5 +55,13 @@ impl<IDX: Indexing> From<&Tree<IDX>> for VerifiedMapping<IDX> {
                 .map(|(idx, (name, _))| (name.clone(), IDX::from(idx)))
                 .collect(),
         }
+    }
+}
+
+impl<IDX: Indexing> AddPredicate<IDX> for Tree<IDX> {
+    fn add_anon_predicate(&mut self, n: usize) -> IDX {
+        let idx = self.predicates.len();
+        self.predicates.push(("".to_string(), n));
+        IDX::from(idx)
     }
 }

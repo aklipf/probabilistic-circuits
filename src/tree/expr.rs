@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use super::{
     builder::Builder,
     index::Indexing,
-    mapping::{Mapping, VerifiedMapping},
+    mapping::{AddPredicate, Mapping, VerifiedMapping},
     pool::Pool,
     tree::Tree,
 };
@@ -41,13 +41,6 @@ pub fn or(left: Expression, right: Expression) -> Expression {
     }
 }
 
-pub fn all(name: &str, expr: Expression) -> Expression {
-    Expression::All {
-        var: name.to_string(),
-        expr: Box::new(expr),
-    }
-}
-
 pub fn imply(left: Expression, right: Expression) -> Expression {
     or(not(left), right)
 }
@@ -56,7 +49,14 @@ pub fn equivalent(left: Expression, right: Expression) -> Expression {
     and(or(not(left.clone()), right.clone()), or(left, not(right)))
 }
 
-pub fn any(name: &str, expr: Expression) -> Expression {
+pub fn every(name: &str, expr: Expression) -> Expression {
+    Expression::All {
+        var: name.to_string(),
+        expr: Box::new(expr),
+    }
+}
+
+pub fn exist(name: &str, expr: Expression) -> Expression {
     Expression::Any {
         var: name.to_string(),
         expr: Box::new(expr),
@@ -110,7 +110,7 @@ impl<IDX: Indexing + Default> From<Expression> for Tree<IDX> {
 }
 
 impl Expression {
-    fn push_recursive<IDX: Indexing, T: Mapping<IDX>, P: Pool<IDX = IDX>>(
+    fn push_recursive<IDX: Indexing, T: Mapping<IDX>, P: Pool<IDX = IDX> + AddPredicate<IDX>>(
         builder: &mut Builder<IDX, P>,
         expr: &Expression,
         map: &T,
@@ -129,10 +129,10 @@ impl Expression {
                 |inner| Self::push_recursive(inner, left, map),
                 |inner| Self::push_recursive(inner, right, map),
             ),
-            Expression::All { var, expr } => builder.all(map.get_var(var), |inner| {
+            Expression::All { var, expr } => builder.every(map.get_var(var), |inner| {
                 Self::push_recursive(inner, expr, map)
             }),
-            Expression::Any { var, expr } => builder.any(map.get_var(var), |inner| {
+            Expression::Any { var, expr } => builder.exist(map.get_var(var), |inner| {
                 Self::push_recursive(inner, expr, map)
             }),
         }
@@ -476,7 +476,7 @@ mod tests {
         }
 
         #[test]
-        fn test_all() {
+        fn test_every() {
             assert_eq!(
                 Expression::All {
                     var: "x".to_string(),
@@ -522,7 +522,7 @@ mod tests {
         }
 
         #[test]
-        fn test_any() {
+        fn test_exist() {
             assert_eq!(
                 Expression::Any {
                     var: "x".to_string(),
@@ -627,7 +627,7 @@ mod tests {
         );
 
         assert_eq!(
-            any("y", all("x", or(and(not(var("y")), var("x")), var("A")))),
+            exist("y", every("x", or(and(not(var("y")), var("x")), var("A")))),
             Expression::Any {
                 var: "y".to_string(),
                 expr: Box::new(Expression::All {

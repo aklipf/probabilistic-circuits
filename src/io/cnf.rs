@@ -3,6 +3,7 @@ use std::fs;
 
 use crate::tree::builder::Builder;
 use crate::tree::index::Indexing;
+use crate::tree::mapping::AddPredicate;
 use crate::tree::mapping::Mapping;
 use crate::tree::mapping::VerifiedMapping;
 use crate::tree::pool::Pool;
@@ -21,7 +22,6 @@ pub fn load_string<IDX: Indexing>(cnf: String) -> Result<Tree<IDX>, &'static str
     let re_clauses_sep = Regex::new(r"\b+0\b+").unwrap();
 
     // get CNF config (nb of variables and clauses)
-
     let Some(config) = re_config.captures(&cnf) else {
         return Err("Cannot find the problem line");
     };
@@ -63,7 +63,7 @@ fn not_empty_ok<T>(vec: Vec<T>) -> Option<Vec<T>> {
 }
 
 #[inline]
-fn add_var<IDX: Indexing, P: Pool<IDX = IDX>>(
+fn add_var<IDX: Indexing, P: Pool<IDX = IDX> + AddPredicate<IDX>>(
     builder: &mut Builder<'_, IDX, P>,
     var: (bool, IDX),
 ) -> IDX {
@@ -92,7 +92,7 @@ fn parse_clause<IDX: Indexing, M: Mapping<IDX>>(
 }
 
 #[inline]
-fn add_clause<IDX: Indexing, P: Pool<IDX = IDX>>(
+fn add_clause<IDX: Indexing, P: Pool<IDX = IDX> + AddPredicate<IDX>>(
     builder: &mut Builder<'_, IDX, P>,
     vars: &[(bool, IDX)],
 ) -> IDX {
@@ -107,7 +107,7 @@ fn add_clause<IDX: Indexing, P: Pool<IDX = IDX>>(
 }
 
 #[inline]
-fn add_clauses<IDX: Indexing, P: Pool<IDX = IDX>>(
+fn add_clauses<IDX: Indexing, P: Pool<IDX = IDX> + AddPredicate<IDX>>(
     builder: &mut Builder<'_, IDX, P>,
     clauses: &[Vec<(bool, IDX)>],
 ) -> IDX {
@@ -118,5 +118,95 @@ fn add_clauses<IDX: Indexing, P: Pool<IDX = IDX>>(
             |left| add_clause(left, &clauses[0]),
             |right| add_clauses(right, &clauses[1..]),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::iter;
+
+    use super::*;
+
+    #[test]
+    fn test_cnf_parser() {
+        let cnt = load_string::<u32>(
+            r#"
+c Integration test of the CNF loader
+c by Astrid Klipfel
+c
+p cnf 5 4
+2 3 -5 0
+-1 3 -4 0
+1 -3 4 5 0
+1 -2 0
+"#
+            .to_string(),
+        )
+        .unwrap();
+
+        let mut expected = Tree::<u32>::new(
+            [
+                "x(1)".to_string(),
+                "x(2)".to_string(),
+                "x(3)".to_string(),
+                "x(4)".to_string(),
+                "x(5)".to_string(),
+            ],
+            iter::empty(),
+        );
+        expected.builder(|builder| {
+            builder.and(
+                |left| {
+                    left.or(
+                        |left| left.var(1),
+                        |right| {
+                            right.or(|left| left.var(2), |right| right.not(|inner| inner.var(4)))
+                        },
+                    )
+                },
+                |right| {
+                    right.and(
+                        |left| {
+                            left.or(
+                                |left| left.not(|inner| inner.var(0)),
+                                |right| {
+                                    right.or(
+                                        |left| left.var(2),
+                                        |right| right.not(|inner| inner.var(3)),
+                                    )
+                                },
+                            )
+                        },
+                        |right| {
+                            right.and(
+                                |left| {
+                                    left.or(
+                                        |left| left.var(0),
+                                        |right| {
+                                            right.or(
+                                                |left| left.not(|inner| inner.var(2)),
+                                                |right| {
+                                                    right.or(
+                                                        |left| left.var(3),
+                                                        |right| right.var(4),
+                                                    )
+                                                },
+                                            )
+                                        },
+                                    )
+                                },
+                                |right| {
+                                    right.or(
+                                        |left| left.var(0),
+                                        |right| right.not(|inner| inner.var(1)),
+                                    )
+                                },
+                            )
+                        },
+                    )
+                },
+            )
+        });
+        assert_eq!(format!("{cnt}"), format!("{expected}"));
     }
 }

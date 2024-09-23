@@ -1,14 +1,115 @@
 use super::index::Indexing;
+use super::mapping::AddPredicate;
 use super::node::{Node, Symbols};
 use super::pool::Pool;
 use std::fmt::Debug;
 
 #[derive(Debug)]
-pub struct Builder<'a, IDX: Indexing, P: Pool<IDX = IDX>> {
+pub struct Builder<'a, IDX: Indexing, P: Pool<IDX = IDX> + AddPredicate<IDX>> {
     pub(super) allocator: &'a mut P,
 }
 
-impl<'a, IDX: Indexing, P: Pool<IDX = IDX>> Builder<'a, IDX, P> {
+#[macro_export]
+macro_rules! var {
+    ($id: expr) => {
+        |builder| builder.var($id)
+    };
+}
+
+#[macro_export]
+macro_rules! not {
+    ($e: expr) => {
+        |builder| builder.not($e)
+    };
+}
+
+#[macro_export]
+macro_rules! and {
+    ($left: expr,$right: expr) => {
+        |builder| builder.and($left, $right)
+    };
+}
+
+#[macro_export]
+macro_rules! or {
+    ($left: expr,$right: expr) => {
+        |builder| builder.or($left, $right)
+    };
+}
+
+#[macro_export]
+macro_rules! conjunction {
+    ($e: expr) => {
+        $e
+    };
+    ($e:expr,$($es:expr),+) => {{
+        and!($e, conjunction! ($($es),+))
+    }};
+}
+
+#[macro_export]
+macro_rules! disjunction {
+    ($e: expr) => {
+        $e
+    };
+    ($e:expr,$($es:expr),+) => {{
+        or!($e, disjunction! ($($es),+))
+    }};
+}
+
+#[macro_export]
+macro_rules! pred {
+    ($id: expr,$vars: expr) => {
+        |builder| builder.pred($id, $vars)
+    };
+    ($id: expr) => {
+        |builder| builder.pred($id, &[])
+    };
+}
+
+#[macro_export]
+macro_rules! every {
+    ($id: expr,$e: expr) => {
+        |builder| builder.every($id, $e)
+    };
+}
+
+#[macro_export]
+macro_rules! every_n {
+    ($id: expr,$e: expr) => {
+        |builder| builder.every_n($id, $e)
+    };
+}
+
+#[macro_export]
+macro_rules! exist {
+    ($id: expr,$e: expr) => {
+        |builder| builder.exist($id, $e)
+    };
+}
+
+#[macro_export]
+macro_rules! exist_n {
+    ($id: expr,$e: expr) => {
+        |builder| builder.exist_n($id, $e)
+    };
+}
+
+#[macro_export]
+macro_rules! connect {
+    ($e: expr) => {
+        |builder| builder.connect($e)
+    };
+}
+
+#[macro_export]
+macro_rules! copy {
+    ($e: expr) => {
+        |builder| builder.connect($e)
+    };
+}
+
+impl<'a, IDX: Indexing, P: Pool<IDX = IDX> + AddPredicate<IDX>> Builder<'a, IDX, P> {
     #[inline]
     fn push(&mut self, symbol: Symbols<IDX>) -> IDX {
         self.allocator.push(Node {
@@ -106,17 +207,58 @@ impl<'a, IDX: Indexing, P: Pool<IDX = IDX>> Builder<'a, IDX, P> {
     }
 
     #[inline]
-    pub fn all<F: Fn(&mut Self) -> IDX>(&mut self, var_id: IDX, inner: F) -> IDX {
-        self.push_unary(Symbols::All { var_id: var_id }, inner)
+    pub fn every<F: Fn(&mut Self) -> IDX>(&mut self, var_id: IDX, inner: F) -> IDX {
+        self.push_unary(Symbols::Every { var_id: var_id }, inner)
     }
 
     #[inline]
-    pub fn any<F: Fn(&mut Self) -> IDX>(&mut self, var_id: IDX, inner: F) -> IDX {
-        self.push_unary(Symbols::Any { var_id: var_id }, inner)
+    pub fn exist<F: Fn(&mut Self) -> IDX>(&mut self, var_id: IDX, inner: F) -> IDX {
+        self.push_unary(Symbols::Exist { var_id: var_id }, inner)
+    }
+
+    pub fn every_n<F: Fn(&mut Self) -> IDX>(&mut self, var_id: &[IDX], inner: F) -> IDX {
+        let next_idx = inner(self);
+        let mut idx = IDX::NONE;
+
+        for &id in var_id.iter().rev() {
+            idx = self.allocator.push(Node {
+                parent: IDX::NONE,
+                childs: [next_idx, IDX::NONE],
+                symbol: Symbols::Every { var_id: id },
+            });
+            self.allocator[next_idx].parent = idx;
+        }
+
+        idx
+    }
+
+    pub fn exist_n<F: Fn(&mut Self) -> IDX>(&mut self, var_id: &[IDX], inner: F) -> IDX {
+        let next_idx = inner(self);
+        let mut idx = IDX::NONE;
+
+        for &id in var_id.iter().rev() {
+            idx = self.allocator.push(Node {
+                parent: IDX::NONE,
+                childs: [next_idx, IDX::NONE],
+                symbol: Symbols::Exist { var_id: id },
+            });
+            self.allocator[next_idx].parent = idx;
+        }
+
+        idx
     }
 
     #[inline]
     pub fn connect(&mut self, node_id: IDX) -> IDX {
         node_id
+    }
+}
+
+impl<'a, IDX: Indexing, P: Pool<IDX = IDX> + AddPredicate<IDX>> AddPredicate<IDX>
+    for Builder<'a, IDX, P>
+{
+    #[inline]
+    fn add_anon_predicate(&mut self, n: usize) -> IDX {
+        self.allocator.add_anon_predicate(n)
     }
 }

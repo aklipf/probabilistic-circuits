@@ -9,8 +9,8 @@ pub enum Symbols<IDX: Indexing> {
     And,
     Or,
     Predicate { pred_id: IDX },
-    All { var_id: IDX },
-    Any { var_id: IDX },
+    Every { var_id: IDX },
+    Exist { var_id: IDX },
     None,
 }
 
@@ -51,8 +51,8 @@ impl<IDX: Indexing> Node<IDX> {
                     1
                 }
             }
-            Symbols::All { .. } => 1,
-            Symbols::Any { .. } => 1,
+            Symbols::Every { .. } => 1,
+            Symbols::Exist { .. } => 1,
             _ => 0,
         }
     }

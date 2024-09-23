@@ -1,3 +1,5 @@
+use crate::{and, connect, every, exist, not, or, recycle};
+
 use super::node::Symbols;
 use super::{index::Indexing, tree::*};
 
@@ -11,52 +13,35 @@ fn to_nnf_recursive<IDX: Indexing>(tree: &mut Tree<IDX>, idx: IDX) {
         Symbols::Not => match tree[node.childs[0]].symbol {
             Symbols::Not => {
                 let input = tree[node.childs[0]].childs[0];
-                let output = tree.replace(
-                    |recycler| recycler.cut(idx, &[input]),
-                    |builder| builder.connect(input),
-                );
+                let output = tree.replace(recycle!(idx, input), connect!(input));
                 return to_nnf_recursive(tree, output);
             }
             Symbols::And => {
                 let [left, right] = tree[node.childs[0]].childs;
                 let output = tree.replace(
-                    |recycler| recycler.cut(idx, &[left, right]),
-                    |builder| {
-                        builder.or(
-                            |new_left| new_left.not(|not_left| not_left.connect(left)),
-                            |new_right| new_right.not(|not_right| not_right.connect(right)),
-                        )
-                    },
+                    recycle!(idx, left, right),
+                    or!(not!(connect!(left)), not!(connect!(right))),
                 );
                 return to_nnf_recursive(tree, output);
             }
             Symbols::Or => {
                 let [left, right] = tree[node.childs[0]].childs;
                 let output = tree.replace(
-                    |recycler| recycler.cut(idx, &[left, right]),
-                    |builder| {
-                        builder.and(
-                            |new_left| new_left.not(|not_left| not_left.connect(left)),
-                            |new_right| new_right.not(|not_right| not_right.connect(right)),
-                        )
-                    },
+                    recycle!(idx, left, right),
+                    and!(not!(connect!(left)), not!(connect!(right))),
                 );
                 return to_nnf_recursive(tree, output);
             }
-            Symbols::All { var_id } => {
+            Symbols::Every { var_id } => {
                 let child = tree[node.childs[0]].childs[0];
-                let output = tree.replace(
-                    |recycler| recycler.cut(idx, &[child]),
-                    |builder| builder.any(var_id, |any| any.not(|not| not.connect(child))),
-                );
+                let output =
+                    tree.replace(recycle!(idx, child), exist!(var_id, not!(connect!(child))));
                 return to_nnf_recursive(tree, output);
             }
-            Symbols::Any { var_id } => {
+            Symbols::Exist { var_id } => {
                 let child = tree[node.childs[0]].childs[0];
-                let output = tree.replace(
-                    |recycler| recycler.cut(idx, &[child]),
-                    |builder| builder.all(var_id, |any| any.not(|not| not.connect(child))),
-                );
+                let output =
+                    tree.replace(recycle!(idx, child), every!(var_id, not!(connect!(child))));
                 return to_nnf_recursive(tree, output);
             }
             _ => {}

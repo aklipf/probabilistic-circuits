@@ -1,5 +1,6 @@
 use std::ops::{Index, IndexMut};
 
+use super::mapping::AddPredicate;
 use super::tree::Tree;
 
 use super::{index::Indexing, node::Node};
@@ -21,6 +22,16 @@ impl<IDX: Indexing> Pool for Tree<IDX> {
         self.nodes.push(node);
         idx
     }
+}
+
+#[macro_export]
+macro_rules! recycle {
+    ($root:expr) => {
+        |recycler| recycler.cut($root, &[])
+    };
+    ($root:expr,$($leafs:expr),*) => {
+        |recycler| recycler.cut($root, &[$($leafs),*])
+    };
 }
 
 pub struct Recycle<'a, IDX: Indexing> {
@@ -147,5 +158,12 @@ impl<'a, IDX: Indexing> Drop for Recycle<'a, IDX> {
         while let Some(idx) = self.next() {
             self.replace_with_last(idx)
         }
+    }
+}
+
+impl<'a, IDX: Indexing> AddPredicate<IDX> for Recycle<'a, IDX> {
+    #[inline]
+    fn add_anon_predicate(&mut self, n: usize) -> IDX {
+        self.tree.add_anon_predicate(n)
     }
 }

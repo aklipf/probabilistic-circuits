@@ -1,17 +1,19 @@
 mod io;
 mod tree;
 
+use std::array::IntoIter;
 use std::time::Instant;
 
 use io::cnf::*;
+use tree::cnf::skolemize;
 use tree::expr::*;
 use tree::nnf::to_nnf;
 use tree::tree::*;
 
 fn main() {
-    let expr = not(all(
+    let expr = not(every(
         "x",
-        any(
+        exist(
             "y",
             imply(
                 or(not(and(not(var("A")), var("B"))), var("C")),
@@ -21,20 +23,29 @@ fn main() {
     ));
     let mut tree: Tree = expr.into();
 
-    println!("{tree:#?}");
+    let expr = every(
+        "x",
+        exist(
+            "y",
+            or(
+                predicate("WorksFor", &["x", "y"]),
+                predicate("Boss", &["x"]),
+            ),
+        ),
+    );
+    let mut tree: Tree = expr.into();
+
+    //println!("{tree:#?}");
     println!("{tree}");
 
-    to_nnf(&mut tree);
+    skolemize(&mut tree);
 
+    //println!("{tree:#?}");
     println!("{tree}");
 
-    let start = Instant::now();
+    /*let start = Instant::now();
     let tree = load_file::<u32>("aim-50-1_6-yes1-4.cnf".to_string()).unwrap();
     let duration = start.elapsed();
     println!("{:?}", duration);
-    let start = Instant::now();
-    let tree = load_file::<u32>("aim-100-1_6-no-1.cnf".to_string()).unwrap();
-    let duration = start.elapsed();
-    println!("{:?}", duration);
-    println!("{tree}");
+    println!("{tree}");*/
 }
