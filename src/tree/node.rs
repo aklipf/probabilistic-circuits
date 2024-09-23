@@ -2,7 +2,7 @@ use super::index::Indexing;
 
 use std::fmt::Debug;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Symbols<IDX: Indexing> {
     Variable { var_id: IDX },
     Not,
@@ -14,7 +14,7 @@ pub enum Symbols<IDX: Indexing> {
     None,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Node<IDX: Indexing> {
     pub(super) parent: IDX,
     pub(super) childs: [IDX; 2],

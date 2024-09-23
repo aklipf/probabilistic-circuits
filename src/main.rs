@@ -38,9 +38,11 @@ fn main() {
     //println!("{tree:#?}");
     println!("{tree}");
 
+    let start = Instant::now();
     skolemize(&mut tree);
+    let duration = start.elapsed();
+    println!("{:?}", duration);
 
-    //println!("{tree:#?}");
     println!("{tree}");
 
     /*let start = Instant::now();

@@ -105,7 +105,7 @@ macro_rules! connect {
 #[macro_export]
 macro_rules! copy {
     ($e: expr) => {
-        |builder| builder.connect($e)
+        |builder| builder.copy($e)
     };
 }
 
@@ -216,6 +216,7 @@ impl<'a, IDX: Indexing, P: Pool<IDX = IDX> + AddPredicate<IDX>> Builder<'a, IDX,
         self.push_unary(Symbols::Exist { var_id: var_id }, inner)
     }
 
+    #[inline]
     pub fn every_n<F: Fn(&mut Self) -> IDX>(&mut self, var_id: &[IDX], inner: F) -> IDX {
         let next_idx = inner(self);
         let mut idx = IDX::NONE;
@@ -232,6 +233,7 @@ impl<'a, IDX: Indexing, P: Pool<IDX = IDX> + AddPredicate<IDX>> Builder<'a, IDX,
         idx
     }
 
+    #[inline]
     pub fn exist_n<F: Fn(&mut Self) -> IDX>(&mut self, var_id: &[IDX], inner: F) -> IDX {
         let next_idx = inner(self);
         let mut idx = IDX::NONE;
@@ -251,6 +253,19 @@ impl<'a, IDX: Indexing, P: Pool<IDX = IDX> + AddPredicate<IDX>> Builder<'a, IDX,
     #[inline]
     pub fn connect(&mut self, node_id: IDX) -> IDX {
         node_id
+    }
+
+    #[inline]
+    pub fn copy(&mut self, node_id: IDX) -> IDX {
+        let node = self.allocator[node_id];
+        let idx = self.allocator.push(node);
+        for i in 0..2 {
+            if node.childs[i].is_addr() {
+                let res_idx = self.copy(node.childs[i]);
+                self.allocator[res_idx].parent = idx;
+            }
+        }
+        idx
     }
 }
 

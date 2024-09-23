@@ -1,5 +1,3 @@
-use std::ops::Index;
-
 use crate::tree::mapping::AddPredicate;
 use crate::{and, conjunction, connect, copy, every, every_n, not, or, pred, recycle, var};
 
