@@ -1,13 +1,13 @@
 mod io;
 mod tree;
 
-use std::array::IntoIter;
 use std::time::Instant;
 
-use io::cnf::*;
 use tree::cnf::skolemize;
 use tree::expr::*;
+use tree::index::Indexing;
 use tree::nnf::to_nnf;
+use tree::node::Symbols;
 use tree::tree::*;
 
 fn main() {
@@ -42,6 +42,7 @@ fn main() {
     skolemize(&mut tree);
     let duration = start.elapsed();
     println!("{:?}", duration);
+    //println!("{tree:#?}");
 
     println!("{tree}");
 
