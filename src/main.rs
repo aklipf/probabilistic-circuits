@@ -1,41 +1,17 @@
 mod io;
 mod tree;
-
 use std::time::Instant;
 
 use tree::cnf::skolemize;
 use tree::expr::*;
 use tree::index::Indexing;
+use tree::mapping::Mapping;
 use tree::nnf::to_nnf;
 use tree::node::Symbols;
 use tree::tree::*;
 
 fn main() {
-    let expr = not(every(
-        "x",
-        exist(
-            "y",
-            imply(
-                or(not(and(not(var("A")), var("B"))), var("C")),
-                predicate("test", &["x", "y"]),
-            ),
-        ),
-    ));
-    let mut tree: Tree = expr.into();
-
-    let expr = every(
-        "x",
-        exist(
-            "y",
-            or(
-                predicate("WorksFor", &["x", "y"]),
-                predicate("Boss", &["x"]),
-            ),
-        ),
-    );
-    let mut tree: Tree = expr.into();
-
-    //println!("{tree:#?}");
+    let mut tree = Tree::build(expr!(forall(x): exist(y): WorksFor(x,y) | Boss(x)));
     println!("{tree}");
 
     let start = Instant::now();

@@ -2,28 +2,23 @@ use super::builder::Builder;
 use super::index::Indexing;
 use super::node::Node;
 use super::pool::Recycle;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct Tree<IDX: Indexing = u32> {
-    pub(crate) variables: Vec<String>,
-    pub(crate) predicates: Vec<(String, usize)>,
+    pub(crate) named: Vec<Option<String>>,
+    pub(crate) mapping: HashMap<String, IDX>,
     pub(crate) nodes: Vec<Node<IDX>>,
     pub(crate) output: IDX,
 }
 
 impl<IDX: Indexing> Tree<IDX> {
-    pub fn new<T: IntoIterator<Item = String>, U: IntoIterator<Item = (String, usize)>>(
-        variables: T,
-        predicates: U,
-    ) -> Self {
-        Tree {
-            variables: variables.into_iter().collect(),
-            predicates: predicates.into_iter().collect(),
-            nodes: Default::default(),
-            output: IDX::NONE,
-        }
+    pub fn build<F: Fn(&mut Builder<'_, IDX, Self>) -> IDX>(build: F) -> Self {
+        let mut tree: Tree<IDX> = Default::default();
+        tree.builder(build);
+        tree
     }
 
     pub fn builder<F: Fn(&mut Builder<'_, IDX, Self>) -> IDX>(&mut self, build: F) {
@@ -59,6 +54,17 @@ impl<IDX: Indexing> Tree<IDX> {
             self.output = output;
         }
         output
+    }
+}
+
+impl<IDX: Indexing> Default for Tree<IDX> {
+    fn default() -> Self {
+        Self {
+            named: Default::default(),
+            mapping: Default::default(),
+            nodes: Default::default(),
+            output: IDX::NONE,
+        }
     }
 }
 

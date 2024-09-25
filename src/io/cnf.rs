@@ -3,9 +3,7 @@ use std::fs;
 
 use crate::tree::builder::Builder;
 use crate::tree::index::Indexing;
-use crate::tree::mapping::AddPredicate;
 use crate::tree::mapping::Mapping;
-use crate::tree::mapping::VerifiedMapping;
 use crate::tree::pool::Pool;
 use crate::Tree;
 
@@ -32,16 +30,11 @@ pub fn load_string<IDX: Indexing>(cnf: String) -> Result<Tree<IDX>, &'static str
     let cleaned = re_remove_comments.replace_all(&cnf, "");
 
     // parse clauses
-    let mut tree: Tree<IDX> = Tree::new(
-        (1..(n_vars + 1)).map(|id| format!("x({id})")),
-        std::iter::empty(),
-    );
-
-    let map = VerifiedMapping::from(&tree);
+    let mut tree: Tree<IDX> = Default::default();
 
     let clauses: Vec<Vec<(bool, IDX)>> = re_clauses_sep
         .split(&cleaned)
-        .filter_map(|clause| not_empty_ok(parse_clause(&re_clauses_vars, &map, clause)))
+        .filter_map(|clause| not_empty_ok(parse_clause(&re_clauses_vars, &mut tree, clause)))
         .collect();
 
     if clauses.len() != n_clauses {
@@ -63,7 +56,7 @@ fn not_empty_ok<T>(vec: Vec<T>) -> Option<Vec<T>> {
 }
 
 #[inline]
-fn add_var<IDX: Indexing, P: Pool<IDX = IDX> + AddPredicate<IDX>>(
+fn add_var<IDX: Indexing, P: Pool<IDX = IDX> + Mapping<IDX>>(
     builder: &mut Builder<'_, IDX, P>,
     var: (bool, IDX),
 ) -> IDX {
@@ -78,21 +71,21 @@ fn add_var<IDX: Indexing, P: Pool<IDX = IDX> + AddPredicate<IDX>>(
 #[inline]
 fn parse_clause<IDX: Indexing, M: Mapping<IDX>>(
     re: &Regex,
-    map: &M,
+    map: &mut M,
     clause: &str,
 ) -> Vec<(bool, IDX)> {
     re.captures_iter(clause)
         .map(|var| {
             (
                 var.name("not").is_some(),
-                map.get_var(&format!("x({})", &var["id"]).to_string()),
+                map.add_named(&format!("x{}", &var["id"]).to_string()),
             )
         })
         .collect()
 }
 
 #[inline]
-fn add_clause<IDX: Indexing, P: Pool<IDX = IDX> + AddPredicate<IDX>>(
+fn add_clause<IDX: Indexing, P: Pool<IDX = IDX> + Mapping<IDX>>(
     builder: &mut Builder<'_, IDX, P>,
     vars: &[(bool, IDX)],
 ) -> IDX {
@@ -107,7 +100,7 @@ fn add_clause<IDX: Indexing, P: Pool<IDX = IDX> + AddPredicate<IDX>>(
 }
 
 #[inline]
-fn add_clauses<IDX: Indexing, P: Pool<IDX = IDX> + AddPredicate<IDX>>(
+fn add_clauses<IDX: Indexing, P: Pool<IDX = IDX> + Mapping<IDX>>(
     builder: &mut Builder<'_, IDX, P>,
     clauses: &[Vec<(bool, IDX)>],
 ) -> IDX {
@@ -123,9 +116,8 @@ fn add_clauses<IDX: Indexing, P: Pool<IDX = IDX> + AddPredicate<IDX>>(
 
 #[cfg(test)]
 mod tests {
-    use std::iter;
-
     use super::*;
+    use crate::*;
 
     #[test]
     fn test_cnf_parser() {
@@ -144,69 +136,10 @@ p cnf 5 4
         )
         .unwrap();
 
-        let mut expected = Tree::<u32>::new(
-            [
-                "x(1)".to_string(),
-                "x(2)".to_string(),
-                "x(3)".to_string(),
-                "x(4)".to_string(),
-                "x(5)".to_string(),
-            ],
-            iter::empty(),
-        );
-        expected.builder(|builder| {
-            builder.and(
-                |left| {
-                    left.or(
-                        |left| left.var(1),
-                        |right| {
-                            right.or(|left| left.var(2), |right| right.not(|inner| inner.var(4)))
-                        },
-                    )
-                },
-                |right| {
-                    right.and(
-                        |left| {
-                            left.or(
-                                |left| left.not(|inner| inner.var(0)),
-                                |right| {
-                                    right.or(
-                                        |left| left.var(2),
-                                        |right| right.not(|inner| inner.var(3)),
-                                    )
-                                },
-                            )
-                        },
-                        |right| {
-                            right.and(
-                                |left| {
-                                    left.or(
-                                        |left| left.var(0),
-                                        |right| {
-                                            right.or(
-                                                |left| left.not(|inner| inner.var(2)),
-                                                |right| {
-                                                    right.or(
-                                                        |left| left.var(3),
-                                                        |right| right.var(4),
-                                                    )
-                                                },
-                                            )
-                                        },
-                                    )
-                                },
-                                |right| {
-                                    right.or(
-                                        |left| left.var(0),
-                                        |right| right.not(|inner| inner.var(1)),
-                                    )
-                                },
-                            )
-                        },
-                    )
-                },
-            )
-        });
+        let expected = Tree::build(expr!(
+            (x2 | x3 | !x5) & (!x1 | x3 | !x4) & (x1 | !x3 | x4 | x5) & (x1 | !x2)
+        ));
+
         assert_eq!(format!("{cnt}"), format!("{expected}"));
     }
 }

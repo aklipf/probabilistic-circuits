@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
 
-use super::mapping::AddPredicate;
+use super::mapping::Mapping;
 use super::tree::Tree;
 
 use super::{index::Indexing, node::Node};
@@ -161,9 +161,20 @@ impl<'a, IDX: Indexing> Drop for Recycle<'a, IDX> {
     }
 }
 
-impl<'a, IDX: Indexing> AddPredicate<IDX> for Recycle<'a, IDX> {
-    #[inline]
-    fn add_anon_predicate(&mut self, n: usize) -> IDX {
-        self.tree.add_anon_predicate(n)
+impl<'a, IDX: Indexing> Mapping<IDX> for Recycle<'a, IDX> {
+    fn add_named(&mut self, name: &String) -> IDX {
+        self.tree.add_named(name)
+    }
+
+    fn add_anon(&mut self) -> IDX {
+        self.tree.add_anon()
+    }
+
+    fn get_id(&self, name: &String) -> Option<IDX> {
+        self.tree.get_id(name)
+    }
+
+    fn get_named(&self, id: IDX) -> Option<&String> {
+        self.tree.get_named(id)
     }
 }

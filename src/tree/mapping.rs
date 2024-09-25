@@ -1,67 +1,41 @@
-use std::collections::HashMap;
-
 use crate::Tree;
 
 use super::index::Indexing;
 
-pub trait AddPredicate<IDX: Indexing> {
-    fn add_anon_predicate(&mut self, n: usize) -> IDX;
-}
-
 pub trait Mapping<IDX: Indexing = u32> {
-    fn get_pred(&self, name: &String) -> IDX;
-    fn get_var(&self, name: &String) -> IDX;
-    fn get_vars(&self, names: &Vec<String>) -> Vec<IDX>;
+    fn add_named(&mut self, name: &String) -> IDX;
+    fn add_anon(&mut self) -> IDX;
+    fn get_id(&self, name: &String) -> Option<IDX>;
+    fn get_named(&self, id: IDX) -> Option<&String>;
 }
 
-pub(crate) struct VerifiedMapping<IDX: Indexing> {
-    pub vars: HashMap<String, IDX>,
-    pub preds: HashMap<String, IDX>,
-}
-
-impl<IDX: Indexing> Mapping<IDX> for VerifiedMapping<IDX> {
-    fn get_pred(&self, name: &String) -> IDX {
-        *self
-            .preds
-            .get(name)
-            .expect(format!("Unknown predicate {}", name.as_str()).as_str())
-    }
-
-    fn get_var(&self, name: &String) -> IDX {
-        *self
-            .vars
-            .get(name)
-            .expect(format!("Unknown variable {}", name.as_str()).as_str())
-    }
-
-    fn get_vars(&self, names: &Vec<String>) -> Vec<IDX> {
-        names.iter().map(|x| self.get_var(x)).collect::<Vec<IDX>>()
-    }
-}
-
-impl<IDX: Indexing> From<&Tree<IDX>> for VerifiedMapping<IDX> {
-    fn from(tree: &Tree<IDX>) -> Self {
-        VerifiedMapping {
-            vars: tree
-                .variables
-                .iter()
-                .enumerate()
-                .map(|(idx, name)| (name.clone(), IDX::from(idx)))
-                .collect(),
-            preds: tree
-                .predicates
-                .iter()
-                .enumerate()
-                .map(|(idx, (name, _))| (name.clone(), IDX::from(idx)))
-                .collect(),
+impl<IDX: Indexing> Mapping<IDX> for Tree<IDX> {
+    fn add_named(&mut self, name: &String) -> IDX {
+        if let Some(id) = self.get_id(name) {
+            id
+        } else {
+            let id = IDX::from(self.named.len());
+            self.named.push(Some(name.to_owned()));
+            self.mapping.insert(name.to_owned(), id);
+            id
         }
     }
-}
 
-impl<IDX: Indexing> AddPredicate<IDX> for Tree<IDX> {
-    fn add_anon_predicate(&mut self, n: usize) -> IDX {
-        let idx = self.predicates.len();
-        self.predicates.push(("".to_string(), n));
-        IDX::from(idx)
+    fn add_anon(&mut self) -> IDX {
+        let id = IDX::from(self.named.len());
+        self.named.push(None);
+        id
+    }
+
+    fn get_id(&self, name: &String) -> Option<IDX> {
+        self.mapping.get(name).cloned()
+    }
+
+    fn get_named(&self, id: IDX) -> Option<&String> {
+        if id.addr() < self.named.len() {
+            self.named[id.addr()].as_ref()
+        } else {
+            None
+        }
     }
 }

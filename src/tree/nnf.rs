@@ -54,3 +54,19 @@ fn to_nnf_recursive<IDX: Indexing>(tree: &mut Tree<IDX>, idx: IDX) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::*;
+
+    #[test]
+    fn test_to_nnf() {
+        let mut tree = Tree::build(not!(
+            every!(name:"x",exist!(name:"y",imply!(or!(not!(and!(not!(var!(name:"A")),var!(name:"B"))),var!(name:"C")),pred!(name:"test",name:"x",name:"y"))))
+        ));
+        to_nnf(&mut tree);
+
+        assert_eq!(format!("{tree}"), "∃x:(∀y:((((A∨¬B)∨C)∧¬test(x, y))))");
+    }
+}

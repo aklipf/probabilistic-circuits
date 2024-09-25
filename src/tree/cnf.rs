@@ -1,8 +1,7 @@
-use crate::tree::mapping::AddPredicate;
-use crate::{and, conjunction, connect, copy, every, every_n, not, or, pred, recycle, var};
-
+use super::mapping::Mapping;
 use super::node::Symbols;
 use super::{index::Indexing, tree::*};
+use crate::{and, conjunction, connect, copy, every, every_n, not, or, pred, recycle, var};
 
 pub fn skolemize<IDX: Indexing>(tree: &mut Tree<IDX>) {
     skolemize_recursive(tree, tree.output);
@@ -63,8 +62,8 @@ fn skolemize_recursive<IDX: Indexing>(tree: &mut Tree<IDX>, idx: IDX) {
         Symbols::Exist { var_id } => {
             let mut vars: Vec<IDX> = Default::default();
             collect_variables(tree, &mut vars, node.childs[0], var_id);
-            let tseitin = tree.add_anon_predicate(vars.len());
-            let skolem = tree.add_anon_predicate(vars.len());
+            let tseitin = tree.add_anon();
+            let skolem = tree.add_anon();
             let output = tree.output;
             tree.builder(conjunction!(
                 connect!(output),
@@ -72,22 +71,28 @@ fn skolemize_recursive<IDX: Indexing>(tree: &mut Tree<IDX>, idx: IDX) {
                     &vars[..],
                     every!(
                         var_id,
-                        or!(pred!(tseitin, &vars[..]), not!(copy!(node.childs[0])))
+                        or!(
+                            pred!(id: tseitin,ids: &vars[..]),
+                            not!(copy!(node.childs[0]))
+                        )
                     )
                 ),
                 every_n!(
                     &vars[..],
-                    or!(pred!(tseitin, &vars[..]), pred!(skolem, &vars[..]))
+                    or!(
+                        pred!(id: tseitin, ids: &vars[..]),
+                        pred!(id: skolem, ids: &vars[..])
+                    )
                 ),
                 every_n!(
                     &vars[..],
                     every!(
                         var_id,
-                        or!(pred!(skolem, &vars[..]), not!(copy!(node.childs[0])))
+                        or!(pred!(id:skolem, ids:&vars[..]), not!(copy!(node.childs[0])))
                     )
                 )
             ));
-            tree.replace(recycle!(idx), pred!(tseitin, &vars[..]));
+            tree.replace(recycle!(idx), pred!(id:tseitin,ids: &vars[..]));
         }
         _ => {}
     }
