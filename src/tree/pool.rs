@@ -1,5 +1,6 @@
 use std::ops::{Index, IndexMut};
 
+use super::mapping::Mapping;
 use super::tree::Tree;
 
 use super::{index::Indexing, node::Node};
@@ -21,6 +22,16 @@ impl<IDX: Indexing> Pool for Tree<IDX> {
         self.nodes.push(node);
         idx
     }
+}
+
+#[macro_export]
+macro_rules! recycle {
+    ($root:expr) => {
+        |recycler| recycler.cut($root, &[])
+    };
+    ($root:expr,$($leafs:expr),*) => {
+        |recycler| recycler.cut($root, &[$($leafs),*])
+    };
 }
 
 pub struct Recycle<'a, IDX: Indexing> {
@@ -147,5 +158,23 @@ impl<'a, IDX: Indexing> Drop for Recycle<'a, IDX> {
         while let Some(idx) = self.next() {
             self.replace_with_last(idx)
         }
+    }
+}
+
+impl<'a, IDX: Indexing> Mapping<IDX> for Recycle<'a, IDX> {
+    fn add_named(&mut self, name: &String) -> IDX {
+        self.tree.add_named(name)
+    }
+
+    fn add_anon(&mut self) -> IDX {
+        self.tree.add_anon()
+    }
+
+    fn get_id(&self, name: &String) -> Option<IDX> {
+        self.tree.get_id(name)
+    }
+
+    fn get_named(&self, id: IDX) -> Option<&String> {
+        self.tree.get_named(id)
     }
 }

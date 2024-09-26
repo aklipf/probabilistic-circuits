@@ -1,17 +1,28 @@
 use super::index::Indexing;
+use super::mapping::Mapping;
 use super::node::{Node, Symbols};
 use super::tree::*;
 
 use std::fmt::Display;
 
 impl<IDX: Indexing> Node<IDX> {
+    fn fmt_name(tree: &Tree<IDX>, id: IDX) -> String {
+        if let Some(vname) = tree.get_named(id) {
+            vname.to_owned()
+        } else {
+            format!("Anon{}", id.addr())
+        }
+    }
+
     pub(super) fn fmt_recursive(
         &self,
-        tree: &Tree,
+        tree: &Tree<IDX>,
         f: &mut std::fmt::Formatter,
     ) -> std::fmt::Result {
         match self.symbol() {
-            Symbols::Variable { var_id } => write!(f, "{}", tree.variables[var_id.addr()]),
+            Symbols::Variable { var_id } => {
+                write!(f, "{}", Self::fmt_name(tree, *var_id))
+            }
             Symbols::Not => {
                 write!(f, "\u{00AC}")?;
                 tree.nodes[self.childs()[0].addr()].fmt_recursive(tree, f)
@@ -31,7 +42,8 @@ impl<IDX: Indexing> Node<IDX> {
                 write!(f, ")")
             }
             Symbols::Predicate { pred_id } => {
-                write!(f, "{}(", tree.predicates[pred_id.addr()].0)?;
+                write!(f, "{}(", Self::fmt_name(tree, *pred_id))?;
+
                 if self.num_childs() == 0 {
                     write!(f, ")")
                 } else {
@@ -45,13 +57,13 @@ impl<IDX: Indexing> Node<IDX> {
                     write!(f, ")")
                 }
             }
-            Symbols::All { var_id } => {
-                write!(f, "\u{2200}{}:(", tree.variables[var_id.addr()])?;
+            Symbols::Every { var_id } => {
+                write!(f, "\u{2200}{}:(", Self::fmt_name(tree, *var_id))?;
                 tree.nodes[self.childs()[0].addr()].fmt_recursive(tree, f)?;
                 write!(f, ")")
             }
-            Symbols::Any { var_id } => {
-                write!(f, "\u{2203}{}:(", tree.variables[var_id.addr()])?;
+            Symbols::Exist { var_id } => {
+                write!(f, "\u{2203}{}:(", Self::fmt_name(tree, *var_id))?;
                 tree.nodes[self.childs()[0].addr()].fmt_recursive(tree, f)?;
                 write!(f, ")")
             }
@@ -70,23 +82,22 @@ impl Display for Tree {
 mod tests {
     use super::*;
 
-    use super::super::expr::*;
-
     #[test]
     fn test_fmt() {
-        let tree: Tree = all("x", any("y", and(or(not(var("A")), var("x")), var("y")))).into();
+        let tree: Tree = Tree::build(
+            every!(name:"x", exist!(name:"y", and!(or!(not!(var!(name:"A")), var!(name:"x")), var!(name:"y")))),
+        );
         assert_eq!(format!("{tree}"), "∀x:(∃y:(((¬A∨x)∧y)))");
-        let tree: Tree = all(
-            "x",
-            any(
-                "y",
-                and(
-                    predicate("pred_x", &["x"]),
-                    predicate("pred_xy", &["x", "y"]),
-                ),
-            ),
-        )
-        .into();
+        let tree: Tree = Tree::build(every!(
+            name:"x",
+            exist!(
+                name:"y",
+                and!(
+                    pred!(name:"pred_x", name:"x"),
+                    pred!(name:"pred_xy", name:"x", name:"y")
+                )
+            )
+        ));
         assert_eq!(format!("{tree}"), "∀x:(∃y:((pred_x(x)∧pred_xy(x, y))))");
     }
 }
