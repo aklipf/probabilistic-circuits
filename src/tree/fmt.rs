@@ -1,11 +1,12 @@
+use crate::logic::fragment::{Fragment, Symbols};
+
 use super::index::Indexing;
-use super::mapping::Mapping;
-use super::node::{Node, Symbols};
+use super::node::Node;
 use super::tree::*;
 
 use std::fmt::Display;
 
-impl<IDX: Indexing> Node<IDX> {
+/*impl<IDX: Indexing> Node<IDX> {
     fn fmt_name(tree: &Tree<IDX>, id: IDX) -> String {
         if let Some(vname) = tree.get_named(id) {
             vname.to_owned()
@@ -70,20 +71,24 @@ impl<IDX: Indexing> Node<IDX> {
             Symbols::None => panic!("Unkown node None"),
         }
     }
-}
+}*/
 
-impl Display for Tree {
+impl<S: Symbols, IDX: Indexing, const MAX_CHILDS: usize> Display for Tree<S, IDX, MAX_CHILDS>
+where
+    Node<IDX, S, MAX_CHILDS>: Fragment<IDX>,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.nodes[self.output.addr()].fmt_recursive(&self, f)
+        self.nodes[self.output.addr()].fmt_display(f, self)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_fmt() {
+        todo!()
+        /*
         let tree: Tree = Tree::build(
             every!(name:"x", exist!(name:"y", and!(or!(not!(var!(name:"A")), var!(name:"x")), var!(name:"y")))),
         );
@@ -98,6 +103,6 @@ mod tests {
                 )
             )
         ));
-        assert_eq!(format!("{tree}"), "∀x:(∃y:((pred_x(x)∧pred_xy(x, y))))");
+        assert_eq!(format!("{tree}"), "∀x:(∃y:((pred_x(x)∧pred_xy(x, y))))"); */
     }
 }

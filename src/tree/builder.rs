@@ -1,15 +1,29 @@
+use std::ops::{Index, IndexMut};
+
+use crate::logic::fragment::{Fragment, Symbols};
+
+use super::allocator::Allocator;
 use super::index::Indexing;
 use super::mapping::Mapping;
-use super::node::{Node, Symbols};
-use super::pool::Pool;
-use std::fmt::Debug;
+use super::node::Node;
+//use super::node::Node;
+//use std::fmt::Debug;
 
 #[derive(Debug)]
-pub struct Builder<'a, IDX: Indexing, P: Pool<IDX = IDX> + Mapping<IDX>> {
+pub struct Builder<
+    'a,
+    I: Indexing,
+    S: Symbols,
+    const MAX_CHILDS: usize,
+    P: Allocator<IDX = I, Symbols = S>
+        + Mapping<IDX = I>
+        + Index<I, Output = Node<I, S, MAX_CHILDS>>
+        + IndexMut<I>,
+> {
     pub(super) allocator: &'a mut P,
 }
 
-#[macro_export]
+/*#[macro_export]
 macro_rules! var {
     ($id: tt) => {
         var!(id:$id)
@@ -185,9 +199,16 @@ macro_rules! copy {
     };
 }
 
-impl<'a, IDX: Indexing, P: Pool<IDX = IDX> + Mapping<IDX>> Builder<'a, IDX, P> {
+impl<
+        'a,
+        IDX: Indexing,
+        F: Fragment<IDX>,
+        const MAX_CHILDS: usize,
+        P: Allocator<F, MAX_CHILDS, IDX = IDX> + Mapping<IDX>,
+    > Builder<'a, IDX, P>
+{
     #[inline]
-    fn push(&mut self, symbol: Symbols<IDX>) -> IDX {
+    fn push(&mut self, symbol: F::Symbols) -> IDX {
         self.allocator.push(Node {
             parent: IDX::NONE,
             childs: [IDX::NONE, IDX::NONE],
@@ -196,7 +217,7 @@ impl<'a, IDX: Indexing, P: Pool<IDX = IDX> + Mapping<IDX>> Builder<'a, IDX, P> {
     }
 
     #[inline]
-    fn push_unary<F: Fn(&mut Self) -> IDX>(&mut self, symbol: Symbols<IDX>, inner: F) -> IDX {
+    fn push_unary<B: Fn(&mut Self) -> IDX>(&mut self, symbol: F::Symbols, inner: B) -> IDX {
         let inner_idx = inner(self);
 
         let idx = self.allocator.push(Node {
@@ -211,11 +232,11 @@ impl<'a, IDX: Indexing, P: Pool<IDX = IDX> + Mapping<IDX>> Builder<'a, IDX, P> {
     }
 
     #[inline]
-    fn push_binary<F: Fn(&mut Self) -> IDX, G: Fn(&mut Self) -> IDX>(
+    fn push_binary<BLeft: Fn(&mut Self) -> IDX, BRight: Fn(&mut Self) -> IDX>(
         &mut self,
-        symbol: Symbols<IDX>,
-        left: F,
-        right: G,
+        symbol: F::Symbols,
+        left: BLeft,
+        right: BRight,
     ) -> IDX {
         let left_idx = left(self);
         let right_idx = right(self);
@@ -345,20 +366,76 @@ impl<'a, IDX: Indexing, P: Pool<IDX = IDX> + Mapping<IDX>> Builder<'a, IDX, P> {
     }
 }
 
-impl<'a, IDX: Indexing, P: Pool<IDX = IDX> + Mapping<IDX>> Mapping<IDX> for Builder<'a, IDX, P> {
-    fn add_named(&mut self, name: &String) -> IDX {
+*/
+
+impl<'a, I, S, P, const MAX_CHILDS: usize> Builder<'a, I, S, MAX_CHILDS, P>
+where
+    I: Indexing,
+    S: Symbols,
+    P: Allocator<IDX = I, Symbols = S>
+        + Mapping<IDX = I>
+        + Index<I, Output = Node<I, S, MAX_CHILDS>>
+        + IndexMut<I>,
+{
+    #[inline]
+    pub fn connect(&mut self, node_id: I) -> I {
+        node_id
+    }
+
+    #[inline]
+    pub fn copy(&mut self, node_id: I) -> I {
+        let node = self.allocator[node_id];
+        let mut childs_ids = [I::NONE; MAX_CHILDS];
+        childs_ids
+            .iter_mut()
+            .zip(node.childs)
+            .for_each(|(dst, src)| *dst = self.copy(src));
+
+        self.allocator.push(node.symbol, &childs_ids[..])
+    }
+}
+
+impl<'a, I, S, P, const MAX_CHILDS: usize> Allocator for Builder<'a, I, S, MAX_CHILDS, P>
+where
+    I: Indexing,
+    S: Symbols,
+    P: Allocator<IDX = I, Symbols = S>
+        + Mapping<IDX = I>
+        + Index<I, Output = Node<I, S, MAX_CHILDS>>
+        + IndexMut<I>,
+{
+    type Symbols = S;
+    type IDX = I;
+
+    fn push(&mut self, symbol: Self::Symbols, operands: &[Self::IDX]) -> Self::IDX {
+        self.allocator.push(symbol, operands)
+    }
+}
+
+impl<'a, I, S, P, const MAX_CHILDS: usize> Mapping for Builder<'a, I, S, MAX_CHILDS, P>
+where
+    I: Indexing,
+    S: Symbols,
+    P: Allocator<IDX = I, Symbols = S>
+        + Mapping<IDX = I>
+        + Index<I, Output = Node<I, S, MAX_CHILDS>>
+        + IndexMut<I>,
+{
+    type IDX = I;
+
+    fn add_named(&mut self, name: &String) -> Self::IDX {
         self.allocator.add_named(name)
     }
 
-    fn add_anon(&mut self) -> IDX {
+    fn add_anon(&mut self) -> Self::IDX {
         self.allocator.add_anon()
     }
 
-    fn get_id(&self, name: &String) -> Option<IDX> {
+    fn get_id(&self, name: &String) -> Option<Self::IDX> {
         self.allocator.get_id(name)
     }
 
-    fn get_named(&self, id: IDX) -> Option<&String> {
+    fn get_named(&self, id: Self::IDX) -> Option<&String> {
         self.allocator.get_named(id)
     }
 }

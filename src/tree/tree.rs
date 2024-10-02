@@ -1,37 +1,46 @@
+use crate::logic::fragment::{Fragment, Symbols};
+
+use super::allocator::{Allocator, Recycle};
 use super::builder::Builder;
 use super::index::Indexing;
+use super::mapping::Mapping;
 use super::node::Node;
-use super::pool::Recycle;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
 #[derive(Debug)]
-pub struct Tree<IDX: Indexing = u32> {
+pub struct Tree<S: Symbols, IDX: Indexing = u32, const MAX_CHILDS: usize = 2>
+where
+    Node<IDX, S, MAX_CHILDS>: Fragment<IDX>,
+{
     pub(crate) named: Vec<Option<String>>,
     pub(crate) mapping: HashMap<String, IDX>,
-    pub(crate) nodes: Vec<Node<IDX>>,
+    pub(crate) nodes: Vec<Node<IDX, S, MAX_CHILDS>>,
     pub(crate) output: IDX,
 }
 
-impl<IDX: Indexing> Tree<IDX> {
-    pub fn build<F: Fn(&mut Builder<'_, IDX, Self>) -> IDX>(build: F) -> Self {
-        let mut tree: Tree<IDX> = Default::default();
+impl<S: Symbols, IDX: Indexing, const MAX_CHILDS: usize> Tree<S, IDX, MAX_CHILDS>
+where
+    Node<IDX, S, MAX_CHILDS>: Fragment<IDX>,
+{
+    pub fn build<B: Fn(&mut Builder<IDX, S, MAX_CHILDS, Self>) -> IDX>(build: B) -> Self {
+        let mut tree: Tree<S, IDX, MAX_CHILDS> = Default::default();
         tree.builder(build);
         tree
     }
 
-    pub fn builder<F: Fn(&mut Builder<'_, IDX, Self>) -> IDX>(&mut self, build: F) {
+    pub fn builder<B: Fn(&mut Builder<IDX, S, MAX_CHILDS, Self>) -> IDX>(&mut self, build: B) {
         self.output = build(&mut Builder { allocator: self })
     }
 
     pub fn replace<
-        F: Fn(&mut Recycle<'_, IDX>),
-        G: Fn(&mut Builder<'_, IDX, Recycle<'_, IDX>>) -> IDX,
+        R: Fn(&mut Recycle<'_, S, IDX, MAX_CHILDS>),
+        B: Fn(&mut Builder<'_, IDX, S, MAX_CHILDS, Recycle<'_, S, IDX, MAX_CHILDS>>) -> IDX,
     >(
         &mut self,
-        remove: F,
-        build: G,
+        remove: R,
+        build: B,
     ) -> IDX {
         let (root, output) = {
             let mut recycle = Recycle::new(self);
@@ -48,7 +57,7 @@ impl<IDX: Indexing> Tree<IDX> {
         if root.is_addr() {
             self[output].parent = root;
             self[root]
-                .input_replace(IDX::NONE, output)
+                .replace_operand(IDX::NONE, output)
                 .expect("Tree error");
         } else {
             self.output = output;
@@ -57,7 +66,10 @@ impl<IDX: Indexing> Tree<IDX> {
     }
 }
 
-impl<IDX: Indexing> Default for Tree<IDX> {
+impl<S: Symbols, IDX: Indexing, const MAX_CHILDS: usize> Default for Tree<S, IDX, MAX_CHILDS>
+where
+    Node<IDX, S, MAX_CHILDS>: Fragment<IDX>,
+{
     fn default() -> Self {
         Self {
             named: Default::default(),
@@ -68,8 +80,11 @@ impl<IDX: Indexing> Default for Tree<IDX> {
     }
 }
 
-impl<IDX: Indexing> Index<IDX> for Tree<IDX> {
-    type Output = Node<IDX>;
+impl<S: Symbols, IDX: Indexing, const MAX_CHILDS: usize> Index<IDX> for Tree<S, IDX, MAX_CHILDS>
+where
+    Node<IDX, S, MAX_CHILDS>: Fragment<IDX>,
+{
+    type Output = Node<IDX, S, MAX_CHILDS>;
 
     #[inline]
     fn index(&self, index: IDX) -> &Self::Output {
@@ -77,9 +92,12 @@ impl<IDX: Indexing> Index<IDX> for Tree<IDX> {
     }
 }
 
-impl<IDX: Indexing> IndexMut<IDX> for Tree<IDX> {
+impl<S: Symbols, IDX: Indexing, const MAX_CHILDS: usize> IndexMut<IDX> for Tree<S, IDX, MAX_CHILDS>
+where
+    Node<IDX, S, MAX_CHILDS>: Fragment<IDX>,
+{
     #[inline]
-    fn index_mut<'a>(&'a mut self, index: IDX) -> &'a mut Node<IDX> {
+    fn index_mut<'a>(&'a mut self, index: IDX) -> &'a mut Node<IDX, S, MAX_CHILDS> {
         &mut self.nodes[index.addr()]
     }
 }

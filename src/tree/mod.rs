@@ -9,5 +9,5 @@ pub mod mapping;
 pub mod nnf;
 pub mod node;
 #[macro_use]
-pub mod pool;
+pub mod allocator;
 pub mod tree;

@@ -3,6 +3,14 @@ name = "probabilistic-circuits"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["lib"]
+bench = false
+
+[[example]]
+name = "formula"
+crate-type = ["bin"]
+
 [dependencies]
 num-traits = "0.2.19"
 regex = "1.10.6"

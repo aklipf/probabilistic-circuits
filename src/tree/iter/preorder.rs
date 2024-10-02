@@ -1,4 +1,4 @@
-use crate::tree::index::Indexing;
+/*use crate::tree::index::Indexing;
 
 use super::super::node::Node;
 use super::super::tree::Tree;
@@ -33,3 +33,4 @@ impl<'a, IDX: Indexing> Iterator for IterPreorder<'a, IDX> {
         Some(&self.tree.nodes[idx.addr()])
     }
 }
+*/

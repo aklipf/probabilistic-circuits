@@ -1,12 +1,12 @@
 use regex::Regex;
 use std::fs;
 
+use crate::tree::allocator::Allocator;
 use crate::tree::builder::Builder;
 use crate::tree::index::Indexing;
 use crate::tree::mapping::Mapping;
-use crate::tree::pool::Pool;
-use crate::Tree;
-
+use crate::tree::tree::Tree;
+/*
 pub fn load_file<IDX: Indexing>(file_name: String) -> Result<Tree<IDX>, &'static str> {
     let contents = fs::read_to_string(file_name).expect("Not able to load file.");
     load_string(contents)
@@ -56,7 +56,7 @@ fn not_empty_ok<T>(vec: Vec<T>) -> Option<Vec<T>> {
 }
 
 #[inline]
-fn add_var<IDX: Indexing, P: Pool<IDX = IDX> + Mapping<IDX>>(
+fn add_var<IDX: Indexing, P: Allocator<IDX = IDX> + Mapping<IDX>>(
     builder: &mut Builder<'_, IDX, P>,
     var: (bool, IDX),
 ) -> IDX {
@@ -85,7 +85,7 @@ fn parse_clause<IDX: Indexing, M: Mapping<IDX>>(
 }
 
 #[inline]
-fn add_clause<IDX: Indexing, P: Pool<IDX = IDX> + Mapping<IDX>>(
+fn add_clause<IDX: Indexing, P: Allocator<IDX = IDX> + Mapping<IDX>>(
     builder: &mut Builder<'_, IDX, P>,
     vars: &[(bool, IDX)],
 ) -> IDX {
@@ -100,7 +100,7 @@ fn add_clause<IDX: Indexing, P: Pool<IDX = IDX> + Mapping<IDX>>(
 }
 
 #[inline]
-fn add_clauses<IDX: Indexing, P: Pool<IDX = IDX> + Mapping<IDX>>(
+fn add_clauses<IDX: Indexing, P: Allocator<IDX = IDX> + Mapping<IDX>>(
     builder: &mut Builder<'_, IDX, P>,
     clauses: &[Vec<(bool, IDX)>],
 ) -> IDX {
@@ -143,3 +143,4 @@ p cnf 5 4
         assert_eq!(format!("{cnt}"), format!("{expected}"));
     }
 }
+*/
