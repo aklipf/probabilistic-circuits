@@ -121,25 +121,18 @@ where
     }
 }
 
-impl<F, I: Indexing, const MAX_CHILDS: usize> Allocator<MAX_CHILDS> for Tree<F, I, MAX_CHILDS>
+impl<F, I: Indexing, const MAX_CHILDS: usize> Allocator<I, F, MAX_CHILDS> for Tree<F, I, MAX_CHILDS>
 where
     I: Indexing,
     F: Fragment<I, MAX_CHILDS>,
 {
-    type Fragment = F;
-    type IDX = I;
-
-    fn push(&mut self, symbol: Self::Fragment, operands: &[Self::IDX]) -> Self::IDX {
+    fn push(&mut self, symbol: F, operands: &[I]) -> I {
         let idx = I::from(self.nodes.len());
         self.nodes.push(F::Node::new(symbol, operands));
         idx
     }
 
-    fn push_node(
-        &mut self,
-        node: &<Self::Fragment as Fragment<Self::IDX, MAX_CHILDS>>::Node,
-        operands: &[Self::IDX],
-    ) -> Self::IDX {
+    fn push_node(&mut self, node: &<F as Fragment<I, MAX_CHILDS>>::Node, operands: &[I]) -> I {
         let idx = I::from(self.nodes.len());
         self.nodes.push(node.duplicate(operands));
         idx

@@ -9,19 +9,13 @@ use super::tree::Tree;
 
 use super::index::Indexing;
 
-pub trait Allocator<const MAX_CHILDS: usize>
+pub trait Allocator<I, F, const MAX_CHILDS: usize>
 where
-    Self::IDX: Indexing,
-    Self::Fragment: Fragment<Self::IDX, MAX_CHILDS>,
+    I: Indexing,
+    F: Fragment<I, MAX_CHILDS>,
 {
-    type Fragment;
-    type IDX;
-    fn push(&mut self, symbol: Self::Fragment, operands: &[Self::IDX]) -> Self::IDX;
-    fn push_node(
-        &mut self,
-        node: &<Self::Fragment as Fragment<Self::IDX, MAX_CHILDS>>::Node,
-        operands: &[Self::IDX],
-    ) -> Self::IDX;
+    fn push(&mut self, symbol: F, operands: &[I]) -> I;
+    fn push_node(&mut self, node: &<F as Fragment<I, MAX_CHILDS>>::Node, operands: &[I]) -> I;
 }
 
 pub trait Remover<I: Indexing> {
@@ -131,19 +125,16 @@ where
     }
 }
 
-impl<'a, R, const MAX_CHILDS: usize> Allocator<MAX_CHILDS> for Recycle<'a, R, MAX_CHILDS>
+impl<'a, R, const MAX_CHILDS: usize> Allocator<R::IDX, R::Fragment, MAX_CHILDS>
+    for Recycle<'a, R, MAX_CHILDS>
 where
     R: Removable<MAX_CHILDS>,
 {
-    type Fragment = <R as Buildable<MAX_CHILDS>>::Fragment;
-    type IDX = <R as Buildable<MAX_CHILDS>>::IDX;
-
-    fn push(&mut self, symbol: Self::Fragment, operands: &[Self::IDX]) -> Self::IDX {
+    fn push(&mut self, symbol: R::Fragment, operands: &[R::IDX]) -> R::IDX {
         match self.next() {
             Some(idx) => {
-                self.remover[idx] = <Self::Fragment as Fragment<Self::IDX, MAX_CHILDS>>::Node::new(
-                    symbol, operands,
-                );
+                self.remover[idx] =
+                    <R::Fragment as Fragment<R::IDX, MAX_CHILDS>>::Node::new(symbol, operands);
                 idx
             }
             None => self.remover.push(symbol, operands),
@@ -152,9 +143,9 @@ where
 
     fn push_node(
         &mut self,
-        node: &<Self::Fragment as Fragment<Self::IDX, MAX_CHILDS>>::Node,
-        operands: &[Self::IDX],
-    ) -> Self::IDX {
+        node: &<R::Fragment as Fragment<R::IDX, MAX_CHILDS>>::Node,
+        operands: &[R::IDX],
+    ) -> R::IDX {
         match self.next() {
             Some(idx) => {
                 self.remover[idx] = node.duplicate(operands);

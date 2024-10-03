@@ -9,21 +9,13 @@ use super::node::LinkinNode;
 use super::tree::Tree;
 
 pub trait Buildable<const MAX_CHILDS: usize>:
-    Allocator<
-        MAX_CHILDS,
-        IDX = <Self as Buildable<MAX_CHILDS>>::IDX,
-        Fragment = <Self as Buildable<MAX_CHILDS>>::Fragment,
-    > + Mapping<<Self as Buildable<MAX_CHILDS>>::IDX>
-    + Index<
-        <Self as Buildable<MAX_CHILDS>>::IDX,
-        Output = <<Self as Buildable<MAX_CHILDS>>::Fragment as Fragment<
-            <Self as Buildable<MAX_CHILDS>>::IDX,
-            MAX_CHILDS,
-        >>::Node,
-    > + IndexMut<<Self as Buildable<MAX_CHILDS>>::IDX>
+    Allocator<Self::IDX, Self::Fragment, MAX_CHILDS>
+    + Mapping<Self::IDX>
+    + Index<Self::IDX, Output = <Self::Fragment as Fragment<Self::IDX, MAX_CHILDS>>::Node>
+    + IndexMut<Self::IDX>
 {
     type IDX: Indexing;
-    type Fragment: Fragment<<Self as Buildable<MAX_CHILDS>>::IDX, MAX_CHILDS>;
+    type Fragment: Fragment<Self::IDX, MAX_CHILDS>;
 }
 
 impl<F, I, const MAX_CHILDS: usize> Buildable<MAX_CHILDS> for Tree<F, I, MAX_CHILDS>
