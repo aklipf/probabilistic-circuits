@@ -192,29 +192,28 @@ where
     }
 }
 
-impl<'a, R, const MAX_CHILDS: usize> Mapping for Recycle<'a, R, MAX_CHILDS>
+impl<'a, R, const MAX_CHILDS: usize> Mapping<<R as Buildable<MAX_CHILDS>>::IDX>
+    for Recycle<'a, R, MAX_CHILDS>
 where
     R: Removable<MAX_CHILDS>,
 {
-    type IDX = <R as Buildable<MAX_CHILDS>>::IDX;
-
     #[inline(always)]
-    fn add_named(&mut self, name: &String) -> Self::IDX {
+    fn add_named(&mut self, name: &String) -> <R as Buildable<MAX_CHILDS>>::IDX {
         self.remover.add_named(name)
     }
 
     #[inline(always)]
-    fn add_anon(&mut self) -> Self::IDX {
+    fn add_anon(&mut self) -> <R as Buildable<MAX_CHILDS>>::IDX {
         self.remover.add_anon()
     }
 
     #[inline(always)]
-    fn get_id(&self, name: &String) -> Option<Self::IDX> {
+    fn get_id(&self, name: &String) -> Option<<R as Buildable<MAX_CHILDS>>::IDX> {
         self.remover.get_id(name)
     }
 
     #[inline(always)]
-    fn get_named(&self, id: Self::IDX) -> Option<&String> {
+    fn get_named(&self, id: <R as Buildable<MAX_CHILDS>>::IDX) -> Option<&String> {
         self.remover.get_named(id)
     }
 }

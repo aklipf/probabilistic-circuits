@@ -184,12 +184,11 @@ where
     }
 }
 
-impl<F, I: Indexing, const MAX_CHILDS: usize> Mapping for Tree<F, I, MAX_CHILDS>
+impl<F, I: Indexing, const MAX_CHILDS: usize> Mapping<I> for Tree<F, I, MAX_CHILDS>
 where
     I: Indexing,
     F: Fragment<I, MAX_CHILDS>,
 {
-    type IDX = I;
     fn add_named(&mut self, name: &String) -> I {
         if let Some(id) = self.get_id(name) {
             id

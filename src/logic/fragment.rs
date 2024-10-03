@@ -9,7 +9,7 @@ pub trait FragmentNode<I, F, const MAX_CHILDS: usize>: LinkinNode<I>
 where
     I: Indexing,
 {
-    fn fmt_display<M: Mapping<IDX = I> + Index<I, Output = Self>>(
+    fn fmt_display<M: Mapping<I> + Index<I, Output = Self>>(
         &self,
         f: &mut fmt::Formatter,
         tree: &M,

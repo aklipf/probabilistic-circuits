@@ -38,7 +38,7 @@ pub trait PropositionalLogicBuilder<I: Indexing> {
 pub type PropositionalNode<I> = Node<I, PropositionalLogic<I>, 2>;
 
 impl<I: Indexing> FragmentNode<I, PropositionalLogic<I>, 2> for PropositionalNode<I> {
-    fn fmt_display<T: Mapping<IDX = I> + Index<I, Output = Self>>(
+    fn fmt_display<T: Mapping<I> + Index<I, Output = Self>>(
         &self,
         f: &mut std::fmt::Formatter,
         tree: &T,

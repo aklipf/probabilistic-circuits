@@ -13,7 +13,7 @@ pub trait Buildable<const MAX_CHILDS: usize>:
         MAX_CHILDS,
         IDX = <Self as Buildable<MAX_CHILDS>>::IDX,
         Fragment = <Self as Buildable<MAX_CHILDS>>::Fragment,
-    > + Mapping<IDX = <Self as Buildable<MAX_CHILDS>>::IDX>
+    > + Mapping<<Self as Buildable<MAX_CHILDS>>::IDX>
     + Index<
         <Self as Buildable<MAX_CHILDS>>::IDX,
         Output = <<Self as Buildable<MAX_CHILDS>>::Fragment as Fragment<
