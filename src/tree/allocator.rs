@@ -22,10 +22,7 @@ pub trait Remover<I: Indexing> {
     fn remove(&mut self, idx: I) -> Result<I, &'static str>;
 }
 
-pub trait Removable<const MAX_CHILDS: usize>:
-    Buildable<MAX_CHILDS> + Remover<<Self as Buildable<MAX_CHILDS>>::IDX>
-{
-}
+pub trait Removable<const MAX_CHILDS: usize>: Buildable<MAX_CHILDS> + Remover<Self::IDX> {}
 
 impl<F, I, const MAX_CHILDS: usize> Removable<MAX_CHILDS> for Tree<F, I, MAX_CHILDS>
 where
@@ -38,43 +35,38 @@ where
     R: Removable<MAX_CHILDS>,
 {
     remover: &'a mut R,
-    root: <R as Buildable<MAX_CHILDS>>::IDX,
-    current_idx: <R as Buildable<MAX_CHILDS>>::IDX,
+    root: R::IDX,
+    current_idx: R::IDX,
 }
 
 impl<'a, R, const MAX_CHILDS: usize> Buildable<MAX_CHILDS> for Recycle<'a, R, MAX_CHILDS>
 where
     R: Removable<MAX_CHILDS>,
 {
-    type Fragment = <R as Buildable<MAX_CHILDS>>::Fragment;
-    type IDX = <R as Buildable<MAX_CHILDS>>::IDX;
+    type Fragment = R::Fragment;
+    type IDX = R::IDX;
 }
 
 impl<'a, R, const MAX_CHILDS: usize> Recycle<'a, R, MAX_CHILDS>
 where
     R: Removable<MAX_CHILDS>,
 {
-    pub fn root(&self) -> <R as Buildable<MAX_CHILDS>>::IDX {
+    pub fn root(&self) -> R::IDX {
         self.root
     }
 
     pub fn new(tree: &'a mut R) -> Self {
         Recycle {
             remover: tree,
-            root: <R as Buildable<MAX_CHILDS>>::IDX::NONE,
-            current_idx: <R as Buildable<MAX_CHILDS>>::IDX::NONE,
+            root: R::IDX::NONE,
+            current_idx: R::IDX::NONE,
         }
     }
 
-    pub fn cut(
-        &mut self,
-        from_node: <R as Buildable<MAX_CHILDS>>::IDX,
-        until_nodes: &[<R as Buildable<MAX_CHILDS>>::IDX],
-    ) {
+    pub fn cut(&mut self, from_node: R::IDX, until_nodes: &[R::IDX]) {
         self.root = self.remover[from_node].parent();
         if self.root.is_addr() {
-            let _ = self.remover[self.root]
-                .replace_operand(from_node, <R as Buildable<MAX_CHILDS>>::IDX::NONE);
+            let _ = self.remover[self.root].replace_operand(from_node, R::IDX::NONE);
         }
         self.remover[from_node].unlink_parent();
 
@@ -84,7 +76,7 @@ where
         }
     }
 
-    fn next(&mut self) -> Option<<R as Buildable<MAX_CHILDS>>::IDX> {
+    fn next(&mut self) -> Option<R::IDX> {
         let current_idx = self.current_idx;
 
         if current_idx.is_none() {
@@ -106,7 +98,7 @@ where
         }
     }
 
-    fn remove(&mut self, idx: <R as Buildable<MAX_CHILDS>>::IDX) {
+    fn remove(&mut self, idx: R::IDX) {
         // replace iterator position if needed
         if self.remover.remove(idx).expect("Recycle error") == self.current_idx {
             self.current_idx = idx;
@@ -156,55 +148,49 @@ where
     }
 }
 
-impl<'a, R, const MAX_CHILDS: usize> Index<<R as Buildable<MAX_CHILDS>>::IDX>
-    for Recycle<'a, R, MAX_CHILDS>
+impl<'a, R, const MAX_CHILDS: usize> Index<R::IDX> for Recycle<'a, R, MAX_CHILDS>
 where
     R: Removable<MAX_CHILDS>,
 {
-    type Output = <<R as Buildable<MAX_CHILDS>>::Fragment as Fragment<
-        <R as Buildable<MAX_CHILDS>>::IDX,
-        MAX_CHILDS,
-    >>::Node;
+    type Output = <R::Fragment as Fragment<R::IDX, MAX_CHILDS>>::Node;
 
     #[inline(always)]
-    fn index(&self, index: <R as Buildable<MAX_CHILDS>>::IDX) -> &Self::Output {
+    fn index(&self, index: R::IDX) -> &Self::Output {
         self.remover.index(index)
     }
 }
 
-impl<'a, R, const MAX_CHILDS: usize> IndexMut<<R as Buildable<MAX_CHILDS>>::IDX>
-    for Recycle<'a, R, MAX_CHILDS>
+impl<'a, R, const MAX_CHILDS: usize> IndexMut<R::IDX> for Recycle<'a, R, MAX_CHILDS>
 where
     R: Removable<MAX_CHILDS>,
 {
     #[inline(always)]
-    fn index_mut(&mut self, index: <R as Buildable<MAX_CHILDS>>::IDX) -> &mut Self::Output {
+    fn index_mut(&mut self, index: R::IDX) -> &mut Self::Output {
         self.remover.index_mut(index)
     }
 }
 
-impl<'a, R, const MAX_CHILDS: usize> Mapping<<R as Buildable<MAX_CHILDS>>::IDX>
-    for Recycle<'a, R, MAX_CHILDS>
+impl<'a, R, const MAX_CHILDS: usize> Mapping<R::IDX> for Recycle<'a, R, MAX_CHILDS>
 where
     R: Removable<MAX_CHILDS>,
 {
     #[inline(always)]
-    fn add_named(&mut self, name: &String) -> <R as Buildable<MAX_CHILDS>>::IDX {
+    fn add_named(&mut self, name: &String) -> R::IDX {
         self.remover.add_named(name)
     }
 
     #[inline(always)]
-    fn add_anon(&mut self) -> <R as Buildable<MAX_CHILDS>>::IDX {
+    fn add_anon(&mut self) -> R::IDX {
         self.remover.add_anon()
     }
 
     #[inline(always)]
-    fn get_id(&self, name: &String) -> Option<<R as Buildable<MAX_CHILDS>>::IDX> {
+    fn get_id(&self, name: &String) -> Option<R::IDX> {
         self.remover.get_id(name)
     }
 
     #[inline(always)]
-    fn get_named(&self, id: <R as Buildable<MAX_CHILDS>>::IDX) -> Option<&String> {
+    fn get_named(&self, id: R::IDX) -> Option<&String> {
         self.remover.get_named(id)
     }
 }

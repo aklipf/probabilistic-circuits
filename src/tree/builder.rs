@@ -46,7 +46,7 @@ impl<
 {
     #[inline]
     fn pred_arg(&mut self, vars_id: &[IDX]) -> IDX {
-        if vars_id.len() == 1 {
+        if vars_id.len() == 1 as Fragment<Self::IDX, MAX_CHILDS>> {
             return self.push(Symbols::Variable { var_id: vars_id[0] });
         }
 
@@ -140,20 +140,14 @@ where
     }
 
     #[inline]
-    pub fn connect(
-        &mut self,
-        node_id: <B as Buildable<MAX_CHILDS>>::IDX,
-    ) -> <B as Buildable<MAX_CHILDS>>::IDX {
+    pub fn connect(&mut self, node_id: B::IDX) -> B::IDX {
         node_id
     }
 
     #[inline]
-    pub fn copy(
-        &mut self,
-        node_id: <B as Buildable<MAX_CHILDS>>::IDX,
-    ) -> <B as Buildable<MAX_CHILDS>>::IDX {
+    pub fn copy(&mut self, node_id: B::IDX) -> B::IDX {
         let node = self.buildable[node_id];
-        let mut childs_ids = [<B as Buildable<MAX_CHILDS>>::IDX::NONE; MAX_CHILDS];
+        let mut childs_ids = [B::IDX::NONE; MAX_CHILDS];
         childs_ids
             .iter_mut()
             .zip(node.operands())
