@@ -1,24 +1,15 @@
 use probabilistic_circuits::logic::propositional::*;
-use probabilistic_circuits::tree::mapping::Mapping;
-use probabilistic_circuits::tree::tree::Tree;
+use probabilistic_circuits::tree::mapping::*;
+use probabilistic_circuits::tree::tree::*;
+use probabilistic_circuits::{and, not, or, propositional, var};
 use std::time::Instant;
 
 fn main() {
     //expr!(forall(x): exist(y): WorksFor(x,y) | Boss(x))
-    let mut tree = Tree::<PropSymbols>::build(|builder| {
-        builder.and(
-            |builder| {
-                let var_id = builder.add_named(&"A".to_string());
-                builder.var(var_id)
-            },
-            |builder| {
-                builder.not(|builder| {
-                    let var_id = builder.add_named(&"B".to_string());
-                    builder.var(var_id)
-                })
-            },
-        )
-    });
+    let tree = propositional!(and!(
+        var!(name:"B"),
+        or!(not!(var!(name:"A")), var!(name:"C"))
+    ));
     println!("{tree}");
 
     let start = Instant::now();

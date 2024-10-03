@@ -1,14 +1,17 @@
-use std::ops::{Index, IndexMut};
+use std::ops::Index;
 
 use crate::tree::{
-    allocator::Allocator, builder::Builder, index::Indexing, mapping::Mapping, node::Node,
-    tree::Tree,
+    allocator::Allocator,
+    builder::{Buildable, Builder},
+    index::Indexing,
+    mapping::Mapping,
+    node::{LinkinNode, Node},
 };
 
-use super::fragment::{Fragment, OperandsIter, Symbols};
+use super::fragment::{Fragment, FragmentNode};
 
 #[derive(Clone, Copy, Debug)]
-pub enum PropSymbols<IDX: Indexing = u32> {
+pub enum PropositionalLogic<IDX: Indexing = u32> {
     Variable { id: IDX },
     Not,
     And,
@@ -16,104 +19,109 @@ pub enum PropSymbols<IDX: Indexing = u32> {
     None,
 }
 
-impl<IDX: Indexing> Symbols for PropSymbols<IDX> {}
+impl<I: Indexing> Fragment<I, 2> for PropositionalLogic<I> {
+    type Node = PropositionalNode<I>;
+}
 
-impl<IDX: Indexing> Default for PropSymbols<IDX> {
+impl<IDX: Indexing> Default for PropositionalLogic<IDX> {
     fn default() -> Self {
-        PropSymbols::None
+        PropositionalLogic::None
     }
 }
 
-pub trait PropositionalLogic<I: Indexing> {
+pub trait PropositionalLogicBuilder<I: Indexing> {
     fn var(&mut self, id: I) -> I;
     fn not<F: Fn(&mut Self) -> I>(&mut self, inner: F) -> I;
     fn and<F: Fn(&mut Self) -> I, G: Fn(&mut Self) -> I>(&mut self, left: F, right: G) -> I;
     fn or<F: Fn(&mut Self) -> I, G: Fn(&mut Self) -> I>(&mut self, left: F, right: G) -> I;
 }
 
-pub type PropNode<IDX> = Node<IDX, PropSymbols<IDX>, 2>;
+pub type PropositionalNode<I> = Node<I, PropositionalLogic<I>, 2>;
 
-impl<IDX: Indexing> Fragment<IDX> for PropNode<IDX> {
-    type Symbols = PropSymbols<IDX>;
-
-    fn fmt_display<T: Mapping<IDX = IDX> + Index<IDX, Output = Self>>(
+impl<I: Indexing> FragmentNode<I, PropositionalLogic<I>, 2> for PropositionalNode<I> {
+    fn fmt_display<T: Mapping<IDX = I> + Index<I, Output = Self>>(
         &self,
         f: &mut std::fmt::Formatter,
         tree: &T,
     ) -> std::fmt::Result {
-        match self.symbol {
-            PropSymbols::Variable { id } => {
+        match self.symbol() {
+            PropositionalLogic::Variable { id } => {
                 write!(
                     f,
                     "{}",
                     tree.get_named(id).unwrap_or(&format!("Anon{}", id.addr()))
                 )
             }
-            PropSymbols::Not => {
+            PropositionalLogic::Not => {
                 write!(f, "\u{00AC}")?;
-                self.operands(tree).next().unwrap().fmt_display(f, tree)
+                tree[self.operands().next().unwrap()].fmt_display(f, tree)
             }
-            PropSymbols::And => {
-                let mut operands = self.operands(tree);
+            PropositionalLogic::And => {
+                let mut operands = self.operands();
                 write!(f, "(")?;
-                operands.next().unwrap().fmt_display(f, tree)?;
+                tree[operands.next().unwrap()].fmt_display(f, tree)?;
                 write!(f, "\u{2227}")?;
-                operands.next().unwrap().fmt_display(f, tree)?;
+                tree[operands.next().unwrap()].fmt_display(f, tree)?;
                 write!(f, ")")
             }
-            PropSymbols::Or => {
-                let mut operands = self.operands(tree);
+            PropositionalLogic::Or => {
+                let mut operands = self.operands();
                 write!(f, "(")?;
-                operands.next().unwrap().fmt_display(f, tree)?;
+                tree[operands.next().unwrap()].fmt_display(f, tree)?;
                 write!(f, "\u{2228}")?;
-                operands.next().unwrap().fmt_display(f, tree)?;
+                tree[operands.next().unwrap()].fmt_display(f, tree)?;
                 write!(f, ")")
             }
-            PropSymbols::None => panic!("Can't display a partially initialised tree."),
+            PropositionalLogic::None => panic!("Can't display a partially initialised tree."),
         }
     }
 
     fn arity(&self) -> usize {
-        match self.symbol {
-            PropSymbols::Variable { id: _ } => 0,
-            PropSymbols::Not => 1,
-            PropSymbols::And => 2,
-            PropSymbols::Or => 2,
-            PropSymbols::None => 0,
+        match self.symbol() {
+            PropositionalLogic::Variable { id: _ } => 0,
+            PropositionalLogic::Not => 1,
+            PropositionalLogic::And => 2,
+            PropositionalLogic::Or => 2,
+            PropositionalLogic::None => 0,
         }
+    }
+
+    fn new(symbol: PropositionalLogic<I>, operands: &[I]) -> Self {
+        Self::new(symbol, operands)
+    }
+
+    fn duplicate(&self, operands: &[I]) -> Self {
+        Self::new(self.symbol(), operands)
     }
 }
 
-impl<'a, I, P> PropositionalLogic<I> for Builder<'a, I, PropSymbols<I>, 2, P>
+impl<'a, B, I> PropositionalLogicBuilder<I> for Builder<'a, B, 2>
 where
     I: Indexing,
-    P: Allocator<IDX = I, Symbols = PropSymbols<I>>
-        + Mapping<IDX = I>
-        + Index<I, Output = Node<I, PropSymbols<I>, 2>>
-        + IndexMut<I>,
+    B: Buildable<2, IDX = I, Fragment = PropositionalLogic<I>>,
 {
     #[inline(always)]
     fn var(&mut self, id: I) -> I {
-        self.push(PropSymbols::Variable { id: id }, &[])
+        self.push(PropositionalLogic::Variable { id: id }, &[])
     }
 
     #[inline(always)]
     fn not<F: Fn(&mut Self) -> I>(&mut self, inner: F) -> I {
         let inner_id = inner(self);
-        self.push(PropSymbols::Not, &[inner_id])
+        self.push(PropositionalLogic::Not, &[inner_id])
     }
 
     #[inline(always)]
     fn and<F: Fn(&mut Self) -> I, G: Fn(&mut Self) -> I>(&mut self, left: F, right: G) -> I {
         let left_id = left(self);
         let right_id = right(self);
-        self.push(PropSymbols::And, &[left_id, right_id])
+        self.push(PropositionalLogic::And, &[left_id, right_id])
     }
 
     #[inline(always)]
     fn or<F: Fn(&mut Self) -> I, G: Fn(&mut Self) -> I>(&mut self, left: F, right: G) -> I {
         let left_id = left(self);
         let right_id = right(self);
-        self.push(PropSymbols::Or, &[left_id, right_id])
+        self.push(PropositionalLogic::Or, &[left_id, right_id])
     }
 }

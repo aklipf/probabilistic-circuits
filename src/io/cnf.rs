@@ -1,4 +1,4 @@
-use regex::Regex;
+/*use regex::Regex;
 use std::fs;
 
 use crate::tree::allocator::Allocator;
@@ -6,7 +6,7 @@ use crate::tree::builder::Builder;
 use crate::tree::index::Indexing;
 use crate::tree::mapping::Mapping;
 use crate::tree::tree::Tree;
-/*
+
 pub fn load_file<IDX: Indexing>(file_name: String) -> Result<Tree<IDX>, &'static str> {
     let contents = fs::read_to_string(file_name).expect("Not able to load file.");
     load_string(contents)

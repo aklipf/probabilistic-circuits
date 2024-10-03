@@ -1,45 +1,43 @@
 use std::ops::{Index, IndexMut};
 
-use crate::logic::fragment::{Fragment, Symbols};
+use crate::logic::fragment::{Fragment, FragmentNode};
 
+use super::builder::Buildable;
 use super::mapping::Mapping;
+use super::node::LinkinNode;
 use super::tree::Tree;
 
-use super::{index::Indexing, node::Node};
+use super::index::Indexing;
 
-pub trait Allocator
+pub trait Allocator<const MAX_CHILDS: usize>
 where
     Self::IDX: Indexing,
-    Self::Symbols: Symbols,
+    Self::Fragment: Fragment<Self::IDX, MAX_CHILDS>,
 {
-    type Symbols;
+    type Fragment;
     type IDX;
-    fn push(&mut self, symbol: Self::Symbols, operands: &[Self::IDX]) -> Self::IDX;
+    fn push(&mut self, symbol: Self::Fragment, operands: &[Self::IDX]) -> Self::IDX;
+    fn push_node(
+        &mut self,
+        node: &<Self::Fragment as Fragment<Self::IDX, MAX_CHILDS>>::Node,
+        operands: &[Self::IDX],
+    ) -> Self::IDX;
 }
 
-impl<S: Symbols, IDX: Indexing, const MAX_CHILDS: usize> Allocator for Tree<S, IDX, MAX_CHILDS>
-where
-    Node<IDX, S, MAX_CHILDS>: Fragment<IDX>,
+pub trait Remover<I: Indexing> {
+    fn remove(&mut self, idx: I) -> Result<I, &'static str>;
+}
+
+pub trait Removable<const MAX_CHILDS: usize>:
+    Buildable<MAX_CHILDS> + Remover<<Self as Buildable<MAX_CHILDS>>::IDX>
 {
-    type Symbols = S;
-    type IDX = IDX;
+}
 
-    fn push(&mut self, symbol: S, operands: &[Self::IDX]) -> Self::IDX {
-        let idx = IDX::from(self.nodes.len());
-        let mut childs = [IDX::NONE; MAX_CHILDS];
-
-        childs
-            .iter_mut()
-            .zip(operands)
-            .for_each(|(dst, src)| *dst = *src);
-
-        self.nodes.push(Node {
-            parent: IDX::NONE,
-            childs: childs,
-            symbol: symbol,
-        });
-        idx
-    }
+impl<F, I, const MAX_CHILDS: usize> Removable<MAX_CHILDS> for Tree<F, I, MAX_CHILDS>
+where
+    I: Indexing,
+    F: Fragment<I, MAX_CHILDS>,
+{
 }
 
 #[macro_export]
@@ -52,194 +50,182 @@ macro_rules! recycle {
     };
 }
 
-pub struct Recycle<'a, S: Symbols, IDX: Indexing, const MAX_CHILDS: usize>
+pub struct Recycle<'a, R, const MAX_CHILDS: usize>
 where
-    Node<IDX, S, MAX_CHILDS>: Fragment<IDX>,
+    R: Removable<MAX_CHILDS>,
 {
-    pub(super) tree: &'a mut Tree<S, IDX, MAX_CHILDS>,
-    pub(super) root: IDX,
-    pub(super) current_idx: IDX,
+    remover: &'a mut R,
+    root: <R as Buildable<MAX_CHILDS>>::IDX,
+    current_idx: <R as Buildable<MAX_CHILDS>>::IDX,
 }
 
-impl<'a, S: Symbols, IDX: Indexing, const MAX_CHILDS: usize> Recycle<'a, S, IDX, MAX_CHILDS>
+impl<'a, R, const MAX_CHILDS: usize> Buildable<MAX_CHILDS> for Recycle<'a, R, MAX_CHILDS>
 where
-    Node<IDX, S, MAX_CHILDS>: Fragment<IDX>,
+    R: Removable<MAX_CHILDS>,
 {
-    pub fn new(tree: &'a mut Tree<S, IDX, MAX_CHILDS>) -> Self {
+    type Fragment = <R as Buildable<MAX_CHILDS>>::Fragment;
+    type IDX = <R as Buildable<MAX_CHILDS>>::IDX;
+}
+
+impl<'a, R, const MAX_CHILDS: usize> Recycle<'a, R, MAX_CHILDS>
+where
+    R: Removable<MAX_CHILDS>,
+{
+    pub fn root(&self) -> <R as Buildable<MAX_CHILDS>>::IDX {
+        self.root
+    }
+
+    pub fn new(tree: &'a mut R) -> Self {
         Recycle {
-            tree: tree,
-            root: IDX::NONE,
-            current_idx: IDX::NONE,
+            remover: tree,
+            root: <R as Buildable<MAX_CHILDS>>::IDX::NONE,
+            current_idx: <R as Buildable<MAX_CHILDS>>::IDX::NONE,
         }
     }
 
-    pub fn cut(&mut self, from_node: IDX, until_nodes: &[IDX]) {
-        self.root = self.tree[from_node].parent;
+    pub fn cut(
+        &mut self,
+        from_node: <R as Buildable<MAX_CHILDS>>::IDX,
+        until_nodes: &[<R as Buildable<MAX_CHILDS>>::IDX],
+    ) {
+        self.root = self.remover[from_node].parent();
         if self.root.is_addr() {
-            let _ = self.tree[self.root].replace_operand(from_node, IDX::NONE);
+            let _ = self.remover[self.root]
+                .replace_operand(from_node, <R as Buildable<MAX_CHILDS>>::IDX::NONE);
         }
-        self.tree[from_node].parent.unlink();
+        self.remover[from_node].unlink_parent();
 
         for &idx in until_nodes {
-            let parent = self.tree[idx].parent;
-            self.tree[parent].childs[0].unlink();
-            self.tree[parent].childs[1].unlink();
+            let parent = self.remover[idx].parent();
+            self.remover[parent].remove_operands();
         }
     }
 
-    fn next(&mut self) -> Option<IDX> {
+    fn next(&mut self) -> Option<<R as Buildable<MAX_CHILDS>>::IDX> {
         let current_idx = self.current_idx;
 
         if current_idx.is_none() {
             return None;
         }
 
-        let node = &mut self.tree[self.current_idx];
+        let node = &mut self.remover[self.current_idx];
 
-        match node.childs.iter_mut().find(|idx| idx.is_addr()) {
+        match node.pop_operand() {
             Some(idx) => {
-                self.current_idx = *idx;
-                idx.unlink();
+                self.current_idx = idx;
                 self.next()
             }
             None => {
-                self.current_idx = node.parent;
-                node.parent.unlink();
+                self.current_idx = node.parent();
+                node.unlink_parent();
                 Some(current_idx)
             }
         }
     }
 
-    fn replace_with_last(&mut self, idx: IDX) {
-        let initial_idx = IDX::from(self.tree.nodes.len() - 1);
-
+    fn remove(&mut self, idx: <R as Buildable<MAX_CHILDS>>::IDX) {
         // replace iterator position if needed
-        if initial_idx == self.current_idx {
+        if self.remover.remove(idx).expect("Recycle error") == self.current_idx {
             self.current_idx = idx;
         }
-
-        // pop last node
-        let last_node = self
-            .tree
-            .nodes
-            .pop()
-            .expect("Cannot replace node in empty tree");
-
-        // copy reconnect last node if needed
-        if idx.addr() < self.tree.nodes.len() {
-            for &child_idx in last_node.childs_idx() {
-                self.tree[child_idx].parent = idx;
-            }
-            if last_node.parent.is_addr() {
-                self.tree[last_node.parent]
-                    .replace_operand(initial_idx, idx)
-                    .expect("Recycle error");
-            }
-
-            self.tree[idx] = last_node;
-        }
     }
 }
 
-impl<'a, S: Symbols, IDX: Indexing, const MAX_CHILDS: usize> Index<IDX>
-    for Recycle<'a, S, IDX, MAX_CHILDS>
+impl<'a, R, const MAX_CHILDS: usize> Drop for Recycle<'a, R, MAX_CHILDS>
 where
-    Node<IDX, S, MAX_CHILDS>: Fragment<IDX>,
-{
-    type Output = Node<IDX, S, MAX_CHILDS>;
-
-    #[inline]
-    fn index(&self, index: IDX) -> &Self::Output {
-        &self.tree[index]
-    }
-}
-
-impl<'a, S: Symbols, IDX: Indexing, const MAX_CHILDS: usize> IndexMut<IDX>
-    for Recycle<'a, S, IDX, MAX_CHILDS>
-where
-    Node<IDX, S, MAX_CHILDS>: Fragment<IDX>,
-{
-    #[inline]
-    fn index_mut<'b>(&'b mut self, index: IDX) -> &'b mut Node<IDX, S, MAX_CHILDS> {
-        &mut self.tree[index]
-    }
-}
-
-impl<'a, S: Symbols, IDX: Indexing, const MAX_CHILDS: usize> Allocator
-    for Recycle<'a, S, IDX, MAX_CHILDS>
-where
-    Node<IDX, S, MAX_CHILDS>: Fragment<IDX>,
-{
-    type Symbols = S;
-    type IDX = IDX;
-
-    fn push(&mut self, symbol: S, operands: &[Self::IDX]) -> Self::IDX {
-        match self.next() {
-            Some(idx) => {
-                let node = &mut self.tree[idx];
-                node.symbol = symbol;
-                node.childs = [IDX::NONE; MAX_CHILDS];
-                node.childs
-                    .iter_mut()
-                    .zip(operands)
-                    .for_each(|(dst, src)| *dst = *src);
-
-                idx
-            }
-            None => {
-                let idx = IDX::from(self.tree.nodes.len());
-
-                let mut childs = [IDX::NONE; MAX_CHILDS];
-
-                childs
-                    .iter_mut()
-                    .zip(operands)
-                    .for_each(|(dst, src)| *dst = *src);
-
-                self.tree.nodes.push(Node {
-                    parent: IDX::NONE,
-                    childs: childs,
-                    symbol: symbol,
-                });
-
-                idx
-            }
-        }
-    }
-}
-
-impl<'a, S: Symbols, IDX: Indexing, const MAX_CHILDS: usize> Drop
-    for Recycle<'a, S, IDX, MAX_CHILDS>
-where
-    Node<IDX, S, MAX_CHILDS>: Fragment<IDX>,
+    R: Removable<MAX_CHILDS>,
 {
     fn drop(&mut self) {
         while let Some(idx) = self.next() {
-            self.replace_with_last(idx)
+            self.remove(idx)
         }
     }
 }
 
-impl<'a, S: Symbols, IDX: Indexing, const MAX_CHILDS: usize> Mapping
-    for Recycle<'a, S, IDX, MAX_CHILDS>
+impl<'a, R, const MAX_CHILDS: usize> Allocator<MAX_CHILDS> for Recycle<'a, R, MAX_CHILDS>
 where
-    Node<IDX, S, MAX_CHILDS>: Fragment<IDX>,
+    R: Removable<MAX_CHILDS>,
 {
-    type IDX = IDX;
+    type Fragment = <R as Buildable<MAX_CHILDS>>::Fragment;
+    type IDX = <R as Buildable<MAX_CHILDS>>::IDX;
 
-    fn add_named(&mut self, name: &String) -> IDX {
-        self.tree.add_named(name)
+    fn push(&mut self, symbol: Self::Fragment, operands: &[Self::IDX]) -> Self::IDX {
+        match self.next() {
+            Some(idx) => {
+                self.remover[idx] = <Self::Fragment as Fragment<Self::IDX, MAX_CHILDS>>::Node::new(
+                    symbol, operands,
+                );
+                idx
+            }
+            None => self.remover.push(symbol, operands),
+        }
     }
 
-    fn add_anon(&mut self) -> IDX {
-        self.tree.add_anon()
+    fn push_node(
+        &mut self,
+        node: &<Self::Fragment as Fragment<Self::IDX, MAX_CHILDS>>::Node,
+        operands: &[Self::IDX],
+    ) -> Self::IDX {
+        match self.next() {
+            Some(idx) => {
+                self.remover[idx] = node.duplicate(operands);
+                idx
+            }
+            None => self.remover.push_node(node, operands),
+        }
+    }
+}
+
+impl<'a, R, const MAX_CHILDS: usize> Index<<R as Buildable<MAX_CHILDS>>::IDX>
+    for Recycle<'a, R, MAX_CHILDS>
+where
+    R: Removable<MAX_CHILDS>,
+{
+    type Output = <<R as Buildable<MAX_CHILDS>>::Fragment as Fragment<
+        <R as Buildable<MAX_CHILDS>>::IDX,
+        MAX_CHILDS,
+    >>::Node;
+
+    #[inline(always)]
+    fn index(&self, index: <R as Buildable<MAX_CHILDS>>::IDX) -> &Self::Output {
+        self.remover.index(index)
+    }
+}
+
+impl<'a, R, const MAX_CHILDS: usize> IndexMut<<R as Buildable<MAX_CHILDS>>::IDX>
+    for Recycle<'a, R, MAX_CHILDS>
+where
+    R: Removable<MAX_CHILDS>,
+{
+    #[inline(always)]
+    fn index_mut(&mut self, index: <R as Buildable<MAX_CHILDS>>::IDX) -> &mut Self::Output {
+        self.remover.index_mut(index)
+    }
+}
+
+impl<'a, R, const MAX_CHILDS: usize> Mapping for Recycle<'a, R, MAX_CHILDS>
+where
+    R: Removable<MAX_CHILDS>,
+{
+    type IDX = <R as Buildable<MAX_CHILDS>>::IDX;
+
+    #[inline(always)]
+    fn add_named(&mut self, name: &String) -> Self::IDX {
+        self.remover.add_named(name)
     }
 
-    fn get_id(&self, name: &String) -> Option<IDX> {
-        self.tree.get_id(name)
+    #[inline(always)]
+    fn add_anon(&mut self) -> Self::IDX {
+        self.remover.add_anon()
     }
 
-    fn get_named(&self, id: IDX) -> Option<&String> {
-        self.tree.get_named(id)
+    #[inline(always)]
+    fn get_id(&self, name: &String) -> Option<Self::IDX> {
+        self.remover.get_id(name)
+    }
+
+    #[inline(always)]
+    fn get_named(&self, id: Self::IDX) -> Option<&String> {
+        self.remover.get_named(id)
     }
 }

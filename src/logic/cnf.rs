@@ -1,7 +1,7 @@
-use super::mapping::Mapping;
+/*use super::mapping::Mapping;
 
 use super::{index::Indexing, tree::*};
-/*use crate::{and, conjunction, connect, copy, every, every_n, not, or, pred, recycle, var};
+use crate::{and, conjunction, connect, copy, every, every_n, not, or, pred, recycle, var};
 
 pub fn skolemize<IDX: Indexing>(tree: &mut Tree<IDX>) {
     skolemize_recursive(tree, tree.output);

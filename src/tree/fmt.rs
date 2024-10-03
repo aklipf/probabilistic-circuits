@@ -1,11 +1,3 @@
-use crate::logic::fragment::{Fragment, Symbols};
-
-use super::index::Indexing;
-use super::node::Node;
-use super::tree::*;
-
-use std::fmt::Display;
-
 /*impl<IDX: Indexing> Node<IDX> {
     fn fmt_name(tree: &Tree<IDX>, id: IDX) -> String {
         if let Some(vname) = tree.get_named(id) {
@@ -72,15 +64,6 @@ use std::fmt::Display;
         }
     }
 }*/
-
-impl<S: Symbols, IDX: Indexing, const MAX_CHILDS: usize> Display for Tree<S, IDX, MAX_CHILDS>
-where
-    Node<IDX, S, MAX_CHILDS>: Fragment<IDX>,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.nodes[self.output.addr()].fmt_display(f, self)
-    }
-}
 
 #[cfg(test)]
 mod tests {

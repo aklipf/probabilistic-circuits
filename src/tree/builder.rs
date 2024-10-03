@@ -1,204 +1,49 @@
-use std::ops::{Index, IndexMut};
+use std::ops::{Deref, DerefMut, Index, IndexMut};
 
-use crate::logic::fragment::{Fragment, Symbols};
+use crate::logic::fragment::{Fragment, FragmentNode};
 
 use super::allocator::Allocator;
 use super::index::Indexing;
 use super::mapping::Mapping;
-use super::node::Node;
-//use super::node::Node;
-//use std::fmt::Debug;
+use super::node::LinkinNode;
+use super::tree::Tree;
+
+pub trait Buildable<const MAX_CHILDS: usize>:
+    Allocator<
+        MAX_CHILDS,
+        IDX = <Self as Buildable<MAX_CHILDS>>::IDX,
+        Fragment = <Self as Buildable<MAX_CHILDS>>::Fragment,
+    > + Mapping<IDX = <Self as Buildable<MAX_CHILDS>>::IDX>
+    + Index<
+        <Self as Buildable<MAX_CHILDS>>::IDX,
+        Output = <<Self as Buildable<MAX_CHILDS>>::Fragment as Fragment<
+            <Self as Buildable<MAX_CHILDS>>::IDX,
+            MAX_CHILDS,
+        >>::Node,
+    > + IndexMut<<Self as Buildable<MAX_CHILDS>>::IDX>
+{
+    type IDX: Indexing;
+    type Fragment: Fragment<<Self as Buildable<MAX_CHILDS>>::IDX, MAX_CHILDS>;
+}
+
+impl<F, I, const MAX_CHILDS: usize> Buildable<MAX_CHILDS> for Tree<F, I, MAX_CHILDS>
+where
+    I: Indexing,
+    F: Fragment<I, MAX_CHILDS>,
+{
+    type IDX = I;
+    type Fragment = F;
+}
 
 #[derive(Debug)]
-pub struct Builder<
-    'a,
-    I: Indexing,
-    S: Symbols,
-    const MAX_CHILDS: usize,
-    P: Allocator<IDX = I, Symbols = S>
-        + Mapping<IDX = I>
-        + Index<I, Output = Node<I, S, MAX_CHILDS>>
-        + IndexMut<I>,
-> {
-    pub(super) allocator: &'a mut P,
+pub struct Builder<'a, B, const MAX_CHILDS: usize>
+where
+    B: Buildable<MAX_CHILDS>,
+{
+    buildable: &'a mut B,
 }
 
-/*#[macro_export]
-macro_rules! var {
-    ($id: tt) => {
-        var!(id:$id)
-    };
-    (name:$name: tt) => {
-        |builder| {
-            let id = builder.add_named(&$name.to_string());
-            builder.var(id)
-        }
-    };
-    (id:$id: tt) => {
-        |builder| builder.var($id)
-    };
-}
-
-#[macro_export]
-macro_rules! not {
-    ($e: expr) => {
-        |builder| builder.not($e)
-    };
-}
-
-#[macro_export]
-macro_rules! and {
-    ($left: expr,$right: expr) => {
-        |builder| builder.and($left, $right)
-    };
-}
-
-#[macro_export]
-macro_rules! or {
-    ($left: expr,$right: expr) => {
-        |builder| builder.or($left, $right)
-    };
-}
-
-#[macro_export]
-macro_rules! imply {
-    ($left: expr,$right: expr) => {
-        or!(not!($left), $right)
-    };
-}
-
-#[macro_export]
-macro_rules! equiv {
-    ($left: expr,$right: expr) => {
-        and!(or!(not!($left), $right), or!($left, not!($right)))
-    };
-}
-
-#[macro_export]
-macro_rules! conjunction {
-    ($e: expr) => {
-        $e
-    };
-    ($e:expr,$($es:expr),+) => {{
-        and!($e, conjunction! ($($es),+))
-    }};
-}
-
-#[macro_export]
-macro_rules! disjunction {
-    ($e: expr) => {
-        $e
-    };
-    ($e:expr,$($es:expr),+) => {{
-        or!($e, disjunction! ($($es),+))
-    }};
-}
-
-#[macro_export]
-macro_rules! pred {
-    ($pred: tt,$($var: tt),+) => {
-        pred!(id:$pred,$(id:$var),+)
-    };
-    (id:$id: tt,ids:$slice:expr) => {
-        |builder| builder.pred($id, $slice)
-    };
-    (id:$id: tt,$(id:$var_id: tt),+) => {
-        |builder| builder.pred($id, &[$($var_id),+])
-    };
-    (name:$name: tt,$(name:$var_name: tt),+) => {
-        |builder| {
-            let pred_id=builder.add_named(&$name.to_string());
-            let vars_id=[$(builder.add_named(&$var_name.to_string())),+];
-            builder.pred(pred_id, &vars_id)
-        }
-    };
-    ($pred: tt) => {
-        pred!(id:pred)
-    };
-    (id:$id: tt) => {
-        |builder| builder.pred($id, &[])
-    };
-    (name:$name: tt) => {
-        |builder| builder.pred(builder.add_named(&$name.to_string()), &[])
-    };
-}
-
-#[macro_export]
-macro_rules! every {
-    ($id: tt,$e: expr) => {
-        every!(id:$id,$e)
-    };
-    (name:$name: tt,$e: expr) => {
-        |builder| {
-            let id = builder.add_named(&$name.to_string());
-            builder.every(id, $e)
-        }
-    };
-    (id:$id: tt,$e: expr) => {
-        |builder| builder.every($id, $e)
-    };
-}
-
-#[macro_export]
-macro_rules! every_n {
-    ($id: expr,$e: expr) => {
-        every_n!(id:$id,$e)
-    };
-    (name:$name: tt,$e: expr) => {
-        |builder| {
-            let id = builder.add_named(&$name.to_string());
-            builder.every_n(id, $e)
-        }
-    };
-    (id:$id: expr,$e: expr) => {
-        |builder| builder.every_n($id, $e)
-    };
-}
-
-#[macro_export]
-macro_rules! exist {
-    ($id: expr,$e: expr) => {
-        exist!(id:$id,$e)
-    };
-    (name:$name: tt,$e: expr) => {
-        |builder| {
-            let id = builder.add_named(&$name.to_string());
-            builder.exist(id, $e)
-        }
-    };
-    (id:$id: expr,$e: expr) => {
-        |builder| builder.exist($id, $e)
-    };
-}
-
-#[macro_export]
-macro_rules! exist_n {
-    ($id: expr,$e: expr) => {
-        exist_n!(id:$id,$e)
-    };
-    (name:$name: tt,$e: expr) => {{
-        let id = builder.add_named(&$name.to_string());
-        |builder| builder.exist_n(id, $e)
-    }};
-    (id:$id: expr,$e: expr) => {
-        |builder| builder.exist_n($id, $e)
-    };
-}
-
-#[macro_export]
-macro_rules! connect {
-    ($e: expr) => {
-        |builder| builder.connect($e)
-    };
-}
-
-#[macro_export]
-macro_rules! copy {
-    ($e: expr) => {
-        |builder| builder.copy($e)
-    };
-}
-
+/*
 impl<
         'a,
         IDX: Indexing,
@@ -207,80 +52,6 @@ impl<
         P: Allocator<F, MAX_CHILDS, IDX = IDX> + Mapping<IDX>,
     > Builder<'a, IDX, P>
 {
-    #[inline]
-    fn push(&mut self, symbol: F::Symbols) -> IDX {
-        self.allocator.push(Node {
-            parent: IDX::NONE,
-            childs: [IDX::NONE, IDX::NONE],
-            symbol: symbol,
-        })
-    }
-
-    #[inline]
-    fn push_unary<B: Fn(&mut Self) -> IDX>(&mut self, symbol: F::Symbols, inner: B) -> IDX {
-        let inner_idx = inner(self);
-
-        let idx = self.allocator.push(Node {
-            parent: IDX::NONE,
-            childs: [inner_idx, IDX::NONE],
-            symbol: symbol,
-        });
-
-        self.allocator[inner_idx].parent = idx;
-
-        idx
-    }
-
-    #[inline]
-    fn push_binary<BLeft: Fn(&mut Self) -> IDX, BRight: Fn(&mut Self) -> IDX>(
-        &mut self,
-        symbol: F::Symbols,
-        left: BLeft,
-        right: BRight,
-    ) -> IDX {
-        let left_idx = left(self);
-        let right_idx = right(self);
-
-        let idx = self.allocator.push(Node {
-            parent: IDX::NONE,
-            childs: [left_idx, right_idx],
-            symbol: symbol,
-        });
-
-        self.allocator[left_idx].parent = idx;
-        self.allocator[right_idx].parent = idx;
-
-        idx
-    }
-
-    #[inline]
-    pub fn var(&mut self, id: IDX) -> IDX {
-        self.push(Symbols::Variable { var_id: id })
-    }
-
-    #[inline]
-    pub fn not<F: Fn(&mut Self) -> IDX>(&mut self, inner: F) -> IDX {
-        self.push_unary(Symbols::Not, inner)
-    }
-
-    #[inline]
-    pub fn and<F: Fn(&mut Self) -> IDX, G: Fn(&mut Self) -> IDX>(
-        &mut self,
-        left: F,
-        right: G,
-    ) -> IDX {
-        self.push_binary(Symbols::And, left, right)
-    }
-
-    #[inline]
-    pub fn or<F: Fn(&mut Self) -> IDX, G: Fn(&mut Self) -> IDX>(
-        &mut self,
-        left: F,
-        right: G,
-    ) -> IDX {
-        self.push_binary(Symbols::Or, left, right)
-    }
-
     #[inline]
     fn pred_arg(&mut self, vars_id: &[IDX]) -> IDX {
         if vars_id.len() == 1 {
@@ -368,74 +139,98 @@ impl<
 
 */
 
-impl<'a, I, S, P, const MAX_CHILDS: usize> Builder<'a, I, S, MAX_CHILDS, P>
+impl<'a, B, const MAX_CHILDS: usize> Builder<'a, B, MAX_CHILDS>
 where
-    I: Indexing,
-    S: Symbols,
-    P: Allocator<IDX = I, Symbols = S>
-        + Mapping<IDX = I>
-        + Index<I, Output = Node<I, S, MAX_CHILDS>>
-        + IndexMut<I>,
+    B: Buildable<MAX_CHILDS>,
 {
+    pub fn new(buildable: &'a mut B) -> Self {
+        Self { buildable }
+    }
+
     #[inline]
-    pub fn connect(&mut self, node_id: I) -> I {
+    pub fn connect(
+        &mut self,
+        node_id: <B as Buildable<MAX_CHILDS>>::IDX,
+    ) -> <B as Buildable<MAX_CHILDS>>::IDX {
         node_id
     }
 
     #[inline]
-    pub fn copy(&mut self, node_id: I) -> I {
-        let node = self.allocator[node_id];
-        let mut childs_ids = [I::NONE; MAX_CHILDS];
+    pub fn copy(
+        &mut self,
+        node_id: <B as Buildable<MAX_CHILDS>>::IDX,
+    ) -> <B as Buildable<MAX_CHILDS>>::IDX {
+        let node = self.buildable[node_id];
+        let mut childs_ids = [<B as Buildable<MAX_CHILDS>>::IDX::NONE; MAX_CHILDS];
         childs_ids
             .iter_mut()
-            .zip(node.childs)
+            .zip(node.operands())
             .for_each(|(dst, src)| *dst = self.copy(src));
 
-        self.allocator.push(node.symbol, &childs_ids[..])
+        self.buildable
+            .push_node(&node.duplicate(&[]), &childs_ids[..])
     }
 }
 
-impl<'a, I, S, P, const MAX_CHILDS: usize> Allocator for Builder<'a, I, S, MAX_CHILDS, P>
+impl<'a, B, const MAX_CHILDS: usize> Deref for Builder<'a, B, MAX_CHILDS>
 where
-    I: Indexing,
-    S: Symbols,
-    P: Allocator<IDX = I, Symbols = S>
-        + Mapping<IDX = I>
-        + Index<I, Output = Node<I, S, MAX_CHILDS>>
-        + IndexMut<I>,
+    B: Buildable<MAX_CHILDS>,
 {
-    type Symbols = S;
-    type IDX = I;
+    type Target = B;
 
-    fn push(&mut self, symbol: Self::Symbols, operands: &[Self::IDX]) -> Self::IDX {
-        self.allocator.push(symbol, operands)
+    fn deref(&self) -> &Self::Target {
+        self.buildable
     }
 }
 
-impl<'a, I, S, P, const MAX_CHILDS: usize> Mapping for Builder<'a, I, S, MAX_CHILDS, P>
+impl<'a, B, const MAX_CHILDS: usize> DerefMut for Builder<'a, B, MAX_CHILDS>
 where
-    I: Indexing,
-    S: Symbols,
-    P: Allocator<IDX = I, Symbols = S>
-        + Mapping<IDX = I>
-        + Index<I, Output = Node<I, S, MAX_CHILDS>>
-        + IndexMut<I>,
+    B: Buildable<MAX_CHILDS>,
 {
-    type IDX = I;
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.buildable
+    }
+}
+
+impl<'a, B, const MAX_CHILDS: usize> Allocator<MAX_CHILDS> for Builder<'a, B, MAX_CHILDS>
+where
+    B: Buildable<MAX_CHILDS>,
+{
+    type Fragment = <B as Buildable<MAX_CHILDS>>::Fragment;
+    type IDX = <B as Buildable<MAX_CHILDS>>::IDX;
+
+    fn push(&mut self, symbol: Self::Fragment, operands: &[Self::IDX]) -> Self::IDX {
+        self.buildable.push(symbol, operands)
+    }
+
+    fn push_node(
+        &mut self,
+        node: &<Self::Fragment as Fragment<Self::IDX, MAX_CHILDS>>::Node,
+        operands: &[Self::IDX],
+    ) -> Self::IDX {
+        self.buildable.push_node(node, operands)
+    }
+}
+
+impl<'a, B, const MAX_CHILDS: usize> Mapping for Builder<'a, B, MAX_CHILDS>
+where
+    B: Buildable<MAX_CHILDS>,
+{
+    type IDX = <B as Buildable<MAX_CHILDS>>::IDX;
 
     fn add_named(&mut self, name: &String) -> Self::IDX {
-        self.allocator.add_named(name)
+        self.buildable.add_named(name)
     }
 
     fn add_anon(&mut self) -> Self::IDX {
-        self.allocator.add_anon()
+        self.buildable.add_anon()
     }
 
     fn get_id(&self, name: &String) -> Option<Self::IDX> {
-        self.allocator.get_id(name)
+        self.buildable.get_id(name)
     }
 
     fn get_named(&self, id: Self::IDX) -> Option<&String> {
-        self.allocator.get_named(id)
+        self.buildable.get_named(id)
     }
 }
