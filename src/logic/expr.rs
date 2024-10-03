@@ -1,4 +1,14 @@
 #[macro_export]
+macro_rules! recycle {
+    ($root:expr) => {
+        |recycler| recycler.cut($root, &[])
+    };
+    ($root:expr,$($leafs:expr),*) => {
+        |recycler| recycler.cut($root, &[$($leafs),*])
+    };
+}
+
+#[macro_export]
 macro_rules! propositional {
     ($expr: expr) => {
         Tree::<PropositionalLogic>::build($expr)

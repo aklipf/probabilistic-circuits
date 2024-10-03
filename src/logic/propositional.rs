@@ -1,7 +1,6 @@
 use std::ops::Index;
 
 use crate::tree::{
-    allocator::Allocator,
     builder::{Buildable, Builder},
     index::Indexing,
     mapping::Mapping,

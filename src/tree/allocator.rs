@@ -39,17 +39,6 @@ where
     F: Fragment<I, MAX_CHILDS>,
 {
 }
-
-#[macro_export]
-macro_rules! recycle {
-    ($root:expr) => {
-        |recycler| recycler.cut($root, &[])
-    };
-    ($root:expr,$($leafs:expr),*) => {
-        |recycler| recycler.cut($root, &[$($leafs),*])
-    };
-}
-
 pub struct Recycle<'a, R, const MAX_CHILDS: usize>
 where
     R: Removable<MAX_CHILDS>,
