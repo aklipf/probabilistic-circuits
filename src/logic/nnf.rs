@@ -1,4 +1,4 @@
-use crate::{and, connect, every, exist, not, or, recycle};
+/*use crate::{and, connect, every, exist, not, or, recycle};
 
 use super::node::Symbols;
 use super::{index::Indexing, tree::*};
@@ -69,4 +69,4 @@ mod tests {
 
         assert_eq!(format!("{tree}"), "∃x:(∀y:((((A∨¬B)∨C)∧¬test(x, y))))");
     }
-}
+}*/

@@ -1,21 +1,19 @@
-mod io;
-mod tree;
+use probabilistic_circuits::logic::propositional::*;
+use probabilistic_circuits::tree::traits::Mapping;
+use probabilistic_circuits::tree::tree::*;
+use probabilistic_circuits::*;
 use std::time::Instant;
 
-use tree::cnf::skolemize;
-use tree::expr::*;
-use tree::index::Indexing;
-use tree::mapping::Mapping;
-use tree::nnf::to_nnf;
-use tree::node::Symbols;
-use tree::tree::*;
-
 fn main() {
-    let mut tree = Tree::build(expr!(forall(x): exist(y): WorksFor(x,y) | Boss(x)));
+    //expr!(forall(x): exist(y): WorksFor(x,y) | Boss(x))
+    let tree = propositional!(and!(
+        var!(name:"B"),
+        or!(not!(var!(name:"A")), var!(name:"C"))
+    ));
     println!("{tree}");
 
     let start = Instant::now();
-    skolemize(&mut tree);
+    // skolemize(&mut tree);
     let duration = start.elapsed();
     println!("{:?}", duration);
     //println!("{tree:#?}");

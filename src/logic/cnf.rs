@@ -1,5 +1,5 @@
-use super::mapping::Mapping;
-use super::node::Symbols;
+/*use super::mapping::Mapping;
+
 use super::{index::Indexing, tree::*};
 use crate::{and, conjunction, connect, copy, every, every_n, not, or, pred, recycle, var};
 
@@ -102,3 +102,4 @@ fn skolemize_recursive<IDX: Indexing>(tree: &mut Tree<IDX>, idx: IDX) {
         }
     }
 }
+*/

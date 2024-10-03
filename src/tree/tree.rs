@@ -1,54 +1,79 @@
-use super::builder::Builder;
-use super::index::Indexing;
-use super::node::Node;
-use super::pool::Recycle;
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::ops::{Index, IndexMut};
 
-#[derive(Debug)]
-pub struct Tree<IDX: Indexing = u32> {
-    pub(crate) named: Vec<Option<String>>,
-    pub(crate) mapping: HashMap<String, IDX>,
-    pub(crate) nodes: Vec<Node<IDX>>,
-    pub(crate) output: IDX,
+use crate::logic::fragment::{Fragment, FragmentNode};
+
+use super::builder::Builder;
+use super::index::Indexing;
+use super::node::LinkinNode;
+use super::recycle::Recycle;
+use super::traits::{Allocator, Mapping, Remover};
+
+pub trait ExpressionTree<F, I, const MAX_CHILDS: usize>
+where
+    I: Indexing,
+    F: Fragment<I, MAX_CHILDS>,
+{
+    fn build<B: Fn(&mut Builder<Self, MAX_CHILDS>) -> I>(build: B) -> Self;
+
+    fn builder<B: Fn(&mut Builder<Self, MAX_CHILDS>) -> I>(&mut self, build: B);
+
+    fn replace<
+        R: Fn(&mut Recycle<'_, Self, MAX_CHILDS>),
+        B: Fn(&mut Builder<'_, Recycle<'_, Self, MAX_CHILDS>, MAX_CHILDS>) -> I,
+    >(
+        &mut self,
+        remove: R,
+        build: B,
+    ) -> I;
 }
 
-impl<IDX: Indexing> Tree<IDX> {
-    pub fn build<F: Fn(&mut Builder<'_, IDX, Self>) -> IDX>(build: F) -> Self {
-        let mut tree: Tree<IDX> = Default::default();
+#[derive(Debug)]
+pub struct Tree<F, I: Indexing = u32, const MAX_CHILDS: usize = 2>
+where
+    F: Fragment<I, MAX_CHILDS>,
+{
+    named: Vec<Option<String>>,
+    mapping: HashMap<String, I>,
+    nodes: Vec<F::Node>,
+    output: I,
+}
+
+impl<F, I, const MAX_CHILDS: usize> ExpressionTree<F, I, MAX_CHILDS> for Tree<F, I, MAX_CHILDS>
+where
+    I: Indexing,
+    F: Fragment<I, MAX_CHILDS>,
+{
+    fn build<B: Fn(&mut Builder<Self, MAX_CHILDS>) -> I>(build: B) -> Self {
+        let mut tree: Tree<F, I, MAX_CHILDS> = Default::default();
         tree.builder(build);
         tree
     }
 
-    pub fn builder<F: Fn(&mut Builder<'_, IDX, Self>) -> IDX>(&mut self, build: F) {
-        self.output = build(&mut Builder { allocator: self })
+    fn builder<B: Fn(&mut Builder<Self, MAX_CHILDS>) -> I>(&mut self, build: B) {
+        self.output = build(&mut Builder::new(self))
     }
 
-    pub fn replace<
-        F: Fn(&mut Recycle<'_, IDX>),
-        G: Fn(&mut Builder<'_, IDX, Recycle<'_, IDX>>) -> IDX,
+    fn replace<
+        R: Fn(&mut Recycle<'_, Self, MAX_CHILDS>),
+        B: Fn(&mut Builder<'_, Recycle<'_, Self, MAX_CHILDS>, MAX_CHILDS>) -> I,
     >(
         &mut self,
-        remove: F,
-        build: G,
-    ) -> IDX {
+        remove: R,
+        build: B,
+    ) -> I {
         let (root, output) = {
             let mut recycle = Recycle::new(self);
             remove(&mut recycle);
 
-            (
-                recycle.root,
-                build(&mut Builder {
-                    allocator: &mut recycle,
-                }),
-            )
+            (recycle.root(), build(&mut Builder::new(&mut recycle)))
         };
 
         if root.is_addr() {
-            self[output].parent = root;
+            self[output].replace_parent(root);
             self[root]
-                .input_replace(IDX::NONE, output)
+                .replace_operand(I::NONE, output)
                 .expect("Tree error");
         } else {
             self.output = output;
@@ -57,29 +82,132 @@ impl<IDX: Indexing> Tree<IDX> {
     }
 }
 
-impl<IDX: Indexing> Default for Tree<IDX> {
+impl<F, I, const MAX_CHILDS: usize> Default for Tree<F, I, MAX_CHILDS>
+where
+    I: Indexing,
+    F: Fragment<I, MAX_CHILDS>,
+{
     fn default() -> Self {
         Self {
             named: Default::default(),
             mapping: Default::default(),
             nodes: Default::default(),
-            output: IDX::NONE,
+            output: I::NONE,
         }
     }
 }
 
-impl<IDX: Indexing> Index<IDX> for Tree<IDX> {
-    type Output = Node<IDX>;
+impl<F, I, const MAX_CHILDS: usize> Index<I> for Tree<F, I, MAX_CHILDS>
+where
+    I: Indexing,
+    F: Fragment<I, MAX_CHILDS>,
+{
+    type Output = F::Node;
 
     #[inline]
-    fn index(&self, index: IDX) -> &Self::Output {
+    fn index(&self, index: I) -> &Self::Output {
         &self.nodes[index.addr()]
     }
 }
 
-impl<IDX: Indexing> IndexMut<IDX> for Tree<IDX> {
+impl<F, I, const MAX_CHILDS: usize> IndexMut<I> for Tree<F, I, MAX_CHILDS>
+where
+    I: Indexing,
+    F: Fragment<I, MAX_CHILDS>,
+{
     #[inline]
-    fn index_mut<'a>(&'a mut self, index: IDX) -> &'a mut Node<IDX> {
+    fn index_mut<'a>(&'a mut self, index: I) -> &'a mut F::Node {
         &mut self.nodes[index.addr()]
+    }
+}
+
+impl<F, I: Indexing, const MAX_CHILDS: usize> Allocator<I, F, MAX_CHILDS> for Tree<F, I, MAX_CHILDS>
+where
+    I: Indexing,
+    F: Fragment<I, MAX_CHILDS>,
+{
+    fn push(&mut self, symbol: F, operands: &[I]) -> I {
+        let idx = I::from(self.nodes.len());
+        self.nodes.push(F::Node::new(symbol, operands));
+        idx
+    }
+
+    fn push_node(&mut self, node: &<F as Fragment<I, MAX_CHILDS>>::Node, operands: &[I]) -> I {
+        let idx = I::from(self.nodes.len());
+        self.nodes.push(node.duplicate(operands));
+        idx
+    }
+}
+
+impl<F, I: Indexing, const MAX_CHILDS: usize> Remover<I> for Tree<F, I, MAX_CHILDS>
+where
+    I: Indexing,
+    F: Fragment<I, MAX_CHILDS>,
+{
+    fn remove(&mut self, idx: I) -> Result<I, &'static str> {
+        let last_idx = I::from(self.nodes.len() - 1);
+
+        // pop last node
+        let last_node = self.nodes.pop().expect("Cannot replace node in empty tree");
+
+        // copy reconnect last node if needed
+        if idx.addr() < self.nodes.len() {
+            for child_idx in last_node.operands() {
+                self[child_idx].replace_parent(idx);
+            }
+            if last_node.parent().is_addr() {
+                self[last_node.parent()].replace_operand(last_idx, idx)?;
+            }
+
+            self[idx] = last_node;
+            Ok(last_idx)
+        } else {
+            Err("This node doesn't exist")
+        }
+    }
+}
+
+impl<F, I, const MAX_CHILDS: usize> Display for Tree<F, I, MAX_CHILDS>
+where
+    I: Indexing,
+    F: Fragment<I, MAX_CHILDS>,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.nodes[self.output.addr()].fmt_display(f, self)
+    }
+}
+
+impl<F, I: Indexing, const MAX_CHILDS: usize> Mapping<I> for Tree<F, I, MAX_CHILDS>
+where
+    I: Indexing,
+    F: Fragment<I, MAX_CHILDS>,
+{
+    fn add_named(&mut self, name: &String) -> I {
+        if let Some(id) = self.get_id(name) {
+            id
+        } else {
+            let id = I::from(self.named.len());
+            self.named.push(Some(name.to_owned()));
+            self.mapping.insert(name.to_owned(), id);
+            id
+        }
+    }
+
+    fn add_anon(&mut self) -> I {
+        let id = I::from(self.named.len());
+        self.named.push(None);
+        id
+    }
+
+    fn get_id(&self, name: &String) -> Option<I> {
+        self.mapping.get(name).cloned()
+    }
+
+    fn get_named(&self, id: I) -> Option<&String> {
+        if id.addr() < self.named.len() {
+            self.named[id.addr()].as_ref()
+        } else {
+            None
+        }
     }
 }
