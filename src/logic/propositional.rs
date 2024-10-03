@@ -1,10 +1,10 @@
 use std::ops::Index;
 
 use crate::tree::{
-    builder::{Buildable, Builder},
+    builder::Builder,
     index::Indexing,
-    mapping::Mapping,
     node::{LinkinNode, Node},
+    traits::{Buildable, Mapping},
 };
 
 use super::fragment::{Fragment, FragmentNode};

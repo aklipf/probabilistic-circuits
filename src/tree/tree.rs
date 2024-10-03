@@ -1,14 +1,14 @@
-use crate::logic::fragment::{Fragment, FragmentNode};
-
-use super::allocator::{Allocator, Recycle, Remover};
-use super::builder::Builder;
-use super::index::Indexing;
-use super::mapping::Mapping;
-use super::node::LinkinNode;
-
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::ops::{Index, IndexMut};
+
+use crate::logic::fragment::{Fragment, FragmentNode};
+
+use super::builder::Builder;
+use super::index::Indexing;
+use super::node::LinkinNode;
+use super::recycle::Recycle;
+use super::traits::{Allocator, Mapping, Remover};
 
 pub trait ExpressionTree<F, I, const MAX_CHILDS: usize>
 where

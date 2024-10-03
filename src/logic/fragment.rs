@@ -1,9 +1,9 @@
 use std::fmt::Debug;
-//use std::ops::IndexMut;
 use std::{fmt, ops::Index};
 
+use crate::tree::index::Indexing;
 use crate::tree::node::LinkinNode;
-use crate::tree::{index::Indexing, mapping::Mapping};
+use crate::tree::traits::Mapping;
 
 pub trait FragmentNode<I, F, const MAX_CHILDS: usize>: LinkinNode<I>
 where

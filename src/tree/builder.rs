@@ -1,22 +1,11 @@
-use std::ops::{Deref, DerefMut, Index, IndexMut};
+use std::ops::{Deref, DerefMut};
 
 use crate::logic::fragment::{Fragment, FragmentNode};
 
-use super::allocator::Allocator;
 use super::index::Indexing;
-use super::mapping::Mapping;
 use super::node::LinkinNode;
+use super::traits::Buildable;
 use super::tree::Tree;
-
-pub trait Buildable<const MAX_CHILDS: usize>:
-    Allocator<Self::IDX, Self::Fragment, MAX_CHILDS>
-    + Mapping<Self::IDX>
-    + Index<Self::IDX, Output = <Self::Fragment as Fragment<Self::IDX, MAX_CHILDS>>::Node>
-    + IndexMut<Self::IDX>
-{
-    type IDX: Indexing;
-    type Fragment: Fragment<Self::IDX, MAX_CHILDS>;
-}
 
 impl<F, I, const MAX_CHILDS: usize> Buildable<MAX_CHILDS> for Tree<F, I, MAX_CHILDS>
 where
@@ -107,24 +96,6 @@ impl<
             self.allocator[next_idx].parent = idx;
         }
 
-        idx
-    }
-
-    #[inline]
-    pub fn connect(&mut self, node_id: IDX) -> IDX {
-        node_id
-    }
-
-    #[inline]
-    pub fn copy(&mut self, node_id: IDX) -> IDX {
-        let node = self.allocator[node_id];
-        let idx = self.allocator.push(node);
-        for i in 0..2 {
-            if node.childs[i].is_addr() {
-                let res_idx = self.copy(node.childs[i]);
-                self.allocator[res_idx].parent = idx;
-            }
-        }
         idx
     }
 }

@@ -1,7 +1,7 @@
 use probabilistic_circuits::logic::propositional::*;
-use probabilistic_circuits::tree::mapping::*;
+use probabilistic_circuits::tree::traits::Mapping;
 use probabilistic_circuits::tree::tree::*;
-use probabilistic_circuits::{and, not, or, propositional, var};
+use probabilistic_circuits::*;
 use std::time::Instant;
 
 fn main() {

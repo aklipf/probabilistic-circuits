@@ -2,27 +2,10 @@ use std::ops::{Index, IndexMut};
 
 use crate::logic::fragment::{Fragment, FragmentNode};
 
-use super::builder::Buildable;
-use super::mapping::Mapping;
-use super::node::LinkinNode;
-use super::tree::Tree;
-
 use super::index::Indexing;
-
-pub trait Allocator<I, F, const MAX_CHILDS: usize>
-where
-    I: Indexing,
-    F: Fragment<I, MAX_CHILDS>,
-{
-    fn push(&mut self, symbol: F, operands: &[I]) -> I;
-    fn push_node(&mut self, node: &<F as Fragment<I, MAX_CHILDS>>::Node, operands: &[I]) -> I;
-}
-
-pub trait Remover<I: Indexing> {
-    fn remove(&mut self, idx: I) -> Result<I, &'static str>;
-}
-
-pub trait Removable<const MAX_CHILDS: usize>: Buildable<MAX_CHILDS> + Remover<Self::IDX> {}
+use super::node::LinkinNode;
+use super::traits::{Allocator, Buildable, Mapping, Removable};
+use super::tree::Tree;
 
 impl<F, I, const MAX_CHILDS: usize> Removable<MAX_CHILDS> for Tree<F, I, MAX_CHILDS>
 where
