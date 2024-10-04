@@ -16,6 +16,13 @@ macro_rules! propositional {
 }
 
 #[macro_export]
+macro_rules! circuit {
+    ($expr: expr) => {
+        Tree::<ProbabilisticCircuit>::build($expr)
+    };
+}
+
+#[macro_export]
 macro_rules! var {
     ($id: tt) => {
         var!(id:$id)
@@ -188,5 +195,19 @@ macro_rules! connect {
 macro_rules! copy {
     ($e: expr) => {
         |builder| builder.copy($e)
+    };
+}
+
+#[macro_export]
+macro_rules! prod {
+    ($left: expr,$right: expr) => {
+        |builder| builder.product($left, $right)
+    };
+}
+
+#[macro_export]
+macro_rules! sum {
+    ($left: expr,$right: expr) => {
+        |builder| builder.sum($left, $right)
     };
 }

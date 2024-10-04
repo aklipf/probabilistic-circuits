@@ -54,6 +54,11 @@ impl<I: Indexing, F: Clone + Copy + Debug + Default, const MAX_CHILDS: usize>
     pub fn symbol(&self) -> F {
         self.symbol
     }
+
+    #[inline(always)]
+    pub fn symbol_mut(&mut self) -> &mut F {
+        &mut self.symbol
+    }
 }
 
 impl<I: Indexing, F: Clone + Copy + Debug + Default, const MAX_CHILDS: usize> LinkinNode<I>
