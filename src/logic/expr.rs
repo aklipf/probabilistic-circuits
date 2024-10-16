@@ -16,6 +16,13 @@ macro_rules! propositional {
 }
 
 #[macro_export]
+macro_rules! first_order {
+    ($expr: expr) => {
+        Tree::<FirstOrderLogic>::build($expr)
+    };
+}
+
+#[macro_export]
 macro_rules! circuit {
     ($expr: expr) => {
         Tree::<ProbabilisticCircuit>::build($expr)
