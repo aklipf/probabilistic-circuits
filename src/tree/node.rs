@@ -1,42 +1,37 @@
-use super::index::Indexing;
 use std::fmt::Debug;
 
-pub trait LinkinNode<I: Indexing>: Default + Clone + Copy + Debug {
-    fn parent(&self) -> I;
+use super::addr::Addr;
+
+pub trait LinkingNode {
+    fn parent(&self) -> Addr;
     fn unlink_parent(&mut self);
-    fn replace_parent(&mut self, idx: I);
-    fn operands(&self) -> impl Iterator<Item = I>;
+    fn replace_parent(&mut self, idx: Addr);
+    fn operands(&self) -> &[Addr];
     fn remove_operands(&mut self);
-    fn replace_operand(&mut self, old: I, new: I) -> Result<(), &'static str>;
-    fn pop_operand(&mut self) -> Option<I>;
+    fn replace_operand(&mut self, old: Addr, new: Addr) -> Result<(), &'static str>;
+    fn pop_operand(&mut self) -> Addr;
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct Node<I: Indexing, F: Clone + Copy + Debug + Default, const MAX_CHILDS: usize> {
-    parent: I,
-    childs: [I; MAX_CHILDS],
-    symbol: F,
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Node<const MAX_CHILDS: usize> {
+    pub(super) parent: Addr,
+    pub(super) childs: [Addr; MAX_CHILDS],
 }
 
-impl<IDX: Indexing, F: Clone + Copy + Debug + Default, const MAX_CHILDS: usize> Default
-    for Node<IDX, F, MAX_CHILDS>
-{
+impl<const MAX_CHILDS: usize> Default for Node<MAX_CHILDS> {
     #[inline(always)]
     fn default() -> Self {
         Node {
-            parent: IDX::NONE,
-            childs: [IDX::NONE; MAX_CHILDS],
-            symbol: F::default(),
+            parent: Addr::NONE,
+            childs: [Addr::NONE; MAX_CHILDS],
         }
     }
 }
 
-impl<I: Indexing, F: Clone + Copy + Debug + Default, const MAX_CHILDS: usize>
-    Node<I, F, MAX_CHILDS>
-{
+impl<const MAX_CHILDS: usize> Node<MAX_CHILDS> {
     #[inline(always)]
-    pub fn new(symbol: F, operands: &[I]) -> Self {
-        let mut childs = [I::NONE; MAX_CHILDS];
+    pub fn new(operands: &[Addr]) -> Self {
+        let mut childs = [Addr::NONE; MAX_CHILDS];
 
         childs
             .iter_mut()
@@ -44,55 +39,40 @@ impl<I: Indexing, F: Clone + Copy + Debug + Default, const MAX_CHILDS: usize>
             .for_each(|(dst, src)| *dst = *src);
 
         Self {
-            parent: I::NONE,
+            parent: Addr::NONE,
             childs: childs,
-            symbol: symbol,
         }
-    }
-
-    #[inline(always)]
-    pub fn symbol(&self) -> F {
-        self.symbol
-    }
-
-    #[inline(always)]
-    pub fn symbol_mut(&mut self) -> &mut F {
-        &mut self.symbol
     }
 }
 
-impl<I: Indexing, F: Clone + Copy + Debug + Default, const MAX_CHILDS: usize> LinkinNode<I>
-    for Node<I, F, MAX_CHILDS>
-{
+impl<const MAX_CHILDS: usize> LinkingNode for Node<MAX_CHILDS> {
     #[inline(always)]
-    fn parent(&self) -> I {
+    fn parent(&self) -> Addr {
         self.parent
     }
 
     #[inline(always)]
     fn unlink_parent(&mut self) {
-        self.parent = I::NONE;
+        self.parent = Addr::NONE;
     }
 
     #[inline(always)]
-    fn replace_parent(&mut self, idx: I) {
+    fn replace_parent(&mut self, idx: Addr) {
         self.parent = idx;
     }
 
     #[inline(always)]
-    fn operands(&self) -> impl Iterator<Item = I> {
-        self.childs
-            .iter()
-            .filter_map(|idx| if idx.is_addr() { Some(*idx) } else { None })
+    fn operands(&self) -> &[Addr] {
+        &self.childs
     }
 
     #[inline(always)]
     fn remove_operands(&mut self) {
-        self.childs.iter_mut().for_each(|x| *x = I::NONE)
+        self.childs.iter_mut().for_each(|x| *x = Addr::NONE)
     }
 
     #[inline(always)]
-    fn replace_operand(&mut self, old: I, new: I) -> Result<(), &'static str> {
+    fn replace_operand(&mut self, old: Addr, new: Addr) -> Result<(), &'static str> {
         self.childs
             .iter_mut()
             .find_map(|x| {
@@ -108,14 +88,15 @@ impl<I: Indexing, F: Clone + Copy + Debug + Default, const MAX_CHILDS: usize> Li
     }
 
     #[inline(always)]
-    fn pop_operand(&mut self) -> Option<I> {
+    fn pop_operand(&mut self) -> Addr {
         self.childs
             .iter_mut()
             .find(|idx| idx.is_addr())
             .and_then(|idx| {
                 let pop_idx = *idx;
-                idx.unlink();
+                *idx = Addr::NONE;
                 Some(pop_idx)
             })
+            .unwrap_or_default()
     }
 }

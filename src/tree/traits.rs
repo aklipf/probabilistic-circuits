@@ -1,36 +1,23 @@
+use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
-use crate::logic::fragment::Fragment;
+use super::{addr::Addr, node::LinkingNode, tree::NodeValue};
 
-use super::index::Indexing;
+pub trait Mapping {
+    fn add_named(&mut self, name: &String) -> Addr;
+    fn add_anon(&mut self) -> Addr;
+    fn get_id(&self, name: &String) -> Addr;
+    fn get_named(&self, id: Addr) -> Option<&String>;
+    fn num_named(&self) -> usize;
+}
 
-pub trait Buildable<const MAX_CHILDS: usize>:
-    Allocator<Self::IDX, Self::Fragment, MAX_CHILDS>
-    + Mapping<Self::IDX>
-    + Index<Self::IDX, Output = <Self::Fragment as Fragment<Self::IDX, MAX_CHILDS>>::Node>
-    + IndexMut<Self::IDX>
+pub trait NodeAllocator:
+    Index<Addr, Output = NodeValue<Self::Node, Self::Value>>
+    + IndexMut<Addr, Output = NodeValue<Self::Node, Self::Value>>
 {
-    type IDX: Indexing;
-    type Fragment: Fragment<Self::IDX, MAX_CHILDS>;
-}
-pub trait Removable<const MAX_CHILDS: usize>: Buildable<MAX_CHILDS> + Remover<Self::IDX> {}
+    type Value: Copy + Debug + Default + PartialEq;
+    type Node: LinkingNode + Debug + Default + PartialEq;
 
-pub trait Mapping<I: Indexing> {
-    fn add_named(&mut self, name: &String) -> I;
-    fn add_anon(&mut self) -> I;
-    fn get_id(&self, name: &String) -> Option<I>;
-    fn get_named(&self, id: I) -> Option<&String>;
-}
-
-pub trait Allocator<I, F, const MAX_CHILDS: usize>
-where
-    I: Indexing,
-    F: Fragment<I, MAX_CHILDS>,
-{
-    fn push(&mut self, symbol: F, operands: &[I]) -> I;
-    fn push_node(&mut self, node: &<F as Fragment<I, MAX_CHILDS>>::Node, operands: &[I]) -> I;
-}
-
-pub trait Remover<I: Indexing> {
-    fn remove(&mut self, idx: I) -> Result<I, &'static str>;
+    fn push(&mut self, symbol: Self::Value, operands: &[Addr]) -> Addr;
+    fn remove(&mut self, idx: Addr) -> Result<Addr, &'static str>;
 }
