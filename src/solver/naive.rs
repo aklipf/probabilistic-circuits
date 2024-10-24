@@ -1,28 +1,18 @@
-use std::marker::PhantomData;
+use crate::{logic::propositional::Eval, tree::Mapping};
 
-use crate::{
-    logic::propositional::{eval::Eval, PLogic},
-    tree::{index::Indexing, traits::Mapping, tree::ExpressionTree},
-};
-
-pub struct Enumerate<'a, I: Indexing, T: ExpressionTree<PLogic<I>, I, 2> + Eval<bool>> {
+pub struct Enumerate<'a, T: Eval<bool>> {
     expr: &'a T,
     num_variables: usize,
     current_solution: usize,
-    _marker: PhantomData<I>,
 }
 
-impl<'a, I: Indexing, T: ExpressionTree<PLogic<I>, I, 2> + Eval<bool>>
-    Enumerate<'a, I, T>
-{
+impl<'a, T: Eval<bool>> Enumerate<'a, T> {
     pub fn domain_size(&self) -> usize {
         1 << self.num_variables
     }
 }
 
-impl<'a, I: Indexing, T: ExpressionTree<PLogic<I>, I, 2> + Eval<bool>> Iterator
-    for Enumerate<'a, I, T>
-{
+impl<'a, T: Eval<bool>> Iterator for Enumerate<'a, T> {
     type Item = Vec<bool>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -41,19 +31,12 @@ impl<'a, I: Indexing, T: ExpressionTree<PLogic<I>, I, 2> + Eval<bool>> Iterator
     }
 }
 
-pub fn enumerate<
-    'a,
-    I: Indexing,
-    T: ExpressionTree<PLogic<I>, I, 2> + Mapping<I> + Eval<bool>,
->(
-    expr: &'a T,
-) -> Enumerate<'a, I, T> {
+pub fn enumerate<'a, T: Mapping + Eval<bool>>(expr: &'a T) -> Enumerate<'a, T> {
     assert!(expr.num_named() <= (usize::BITS - 1) as usize);
 
     Enumerate {
         expr: expr,
         num_variables: expr.num_named(),
         current_solution: 0,
-        _marker: Default::default(),
     }
 }
