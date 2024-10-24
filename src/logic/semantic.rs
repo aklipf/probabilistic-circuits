@@ -4,13 +4,13 @@ use std::ops::Index;
 
 use crate::tree::{Addr, LinkingNode, NodeValue};
 
-pub trait FragmentNode {
+pub trait SemanticNode {
     fn arity(&self) -> usize;
 }
 
-pub trait Fragment: Clone + Copy + Debug + PartialEq
+pub trait Semantic: Clone + Copy + Debug + PartialEq
 where
-    NodeValue<Self::Node, Self>: FragmentNode,
+    NodeValue<Self::Node, Self>: SemanticNode,
 {
     type Tree: Index<Addr, Output = NodeValue<Self::Node, Self>> + Display;
     type Node: LinkingNode;

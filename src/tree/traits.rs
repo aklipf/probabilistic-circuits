@@ -8,6 +8,7 @@ pub trait Mapping {
     fn add_anon(&mut self) -> Addr;
     fn get_id(&self, name: &String) -> Addr;
     fn get_named(&self, id: Addr) -> Option<&String>;
+    fn fmt_named(&self, id: Addr) -> String;
     fn num_named(&self) -> usize;
 }
 

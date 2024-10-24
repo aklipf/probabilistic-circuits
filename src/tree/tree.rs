@@ -212,4 +212,11 @@ where
     fn num_named(&self) -> usize {
         self.named.len()
     }
+
+    fn fmt_named(&self, id: Addr) -> String {
+        match self.get_named(id) {
+            Some(name) => name.clone(),
+            None => format!("Anon{}", id.addr()),
+        }
+    }
 }

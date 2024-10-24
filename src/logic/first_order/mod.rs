@@ -1,28 +1,30 @@
 pub mod builder;
-pub mod ground;
 pub mod node;
 
-use super::fragment::Fragment;
-use crate::tree::index::Indexing;
-use node::FirstOrderNode;
+#[cfg(test)]
+mod tests;
 
-#[derive(Clone, Copy, Debug)]
-pub enum FirstOrderLogic<IDX: Indexing = u32> {
-    Predicate { id: IDX },
-    Universal { id: IDX },
-    Existential { id: IDX },
+pub use builder::*;
+pub use node::*;
+
+use crate::tree::{Addr, Node, Tree};
+
+use super::semantic::Semantic;
+
+pub use FOLogic as FirstOrderLogic;
+pub type FirstOrderTree = Tree<FOLogic, 2>;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FOLogic {
+    Predicate { id: Addr },
+    Universal { id: Addr },
+    Existential { id: Addr },
     Not,
     And,
     Or,
-    None,
 }
 
-impl<I: Indexing> Fragment<I, 2> for FirstOrderLogic<I> {
-    type Node = FirstOrderNode<I>;
-}
-
-impl<IDX: Indexing> Default for FirstOrderLogic<IDX> {
-    fn default() -> Self {
-        FirstOrderLogic::None
-    }
+impl Semantic for FOLogic {
+    type Tree = Tree<FOLogic, 2>;
+    type Node = Node<2>;
 }

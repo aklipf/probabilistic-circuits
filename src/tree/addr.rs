@@ -78,17 +78,6 @@ where
     }
 }
 
-/*impl<'a, T> Deref for IndexedRef<'a, T>
-where
-    T: Index<Addr>,
-{
-    type Target = T::Output;
-
-    fn deref(&self) -> &Self::Target {
-        &self.array[self.idx]
-    }
-}*/
-
 pub struct IndexedMutRef<'a, T>
 where
     T: IndexMut<Addr>,
@@ -114,23 +103,3 @@ where
         &mut self.array[self.idx]
     }
 }
-
-/*impl<'a, T> Deref for IndexedMutRef<'a, T>
-where
-    T: IndexMut<Addr>,
-{
-    type Target = T::Output;
-
-    fn deref(&self) -> &Self::Target {
-        &self.array[self.idx]
-    }
-}
-
-impl<'a, T> DerefMut for IndexedMutRef<'a, T>
-where
-    T: IndexMut<Addr>,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.array[self.idx]
-    }
-}*/

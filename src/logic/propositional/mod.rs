@@ -9,7 +9,7 @@ pub use builder::*;
 pub use eval::*;
 pub use node::*;
 
-use super::fragment::Fragment;
+use super::semantic::Semantic;
 
 use crate::tree::{Addr, Node, Tree};
 
@@ -24,7 +24,7 @@ pub enum PLogic {
     Or,
 }
 
-impl Fragment for PLogic {
+impl Semantic for PLogic {
     type Tree = Tree<PLogic, 2>;
     type Node = Node<2>;
 }

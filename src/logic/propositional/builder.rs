@@ -1,11 +1,11 @@
 use std::ops::IndexMut;
 
-use crate::tree::{Addr, IndexedMutRef, Mapping, Node, NodeAllocator, NodeValue};
+use crate::tree::{Addr, IndexedMutRef, IntoAddr, Mapping, Node, NodeAllocator, NodeValue};
 
 use super::PLogic;
 
-pub trait PMut {
-    fn var_id(&mut self, id: Addr) -> Addr;
+pub trait PMut: Sized {
+    fn var<T: IntoAddr<Self, Addr>>(&mut self, id: T) -> Addr;
     fn not<F: Fn(&mut Self) -> Addr>(&mut self, inner: F) -> Addr;
     fn and<F: Fn(&mut Self) -> Addr, G: Fn(&mut Self) -> Addr>(
         &mut self,
@@ -16,30 +16,16 @@ pub trait PMut {
         -> Addr;
 }
 
-pub trait NamedVariable {
-    fn var(&mut self, name: &str) -> Addr;
-}
-
-impl<'a, T> NamedVariable for IndexedMutRef<'a, T>
+impl<'a, T> PMut for IndexedMutRef<'a, T>
 where
     T: IndexMut<Addr, Output = NodeValue<Node<2>, PLogic>>
         + NodeAllocator<Value = PLogic, Node = Node<2>>
         + Mapping,
 {
-    fn var(&mut self, name: &str) -> Addr {
-        let name_id = self.array.add_named(&name.to_string());
-        self.array.push(PLogic::Variable { id: name_id }, &[])
-    }
-}
-
-impl<'a, T> PMut for IndexedMutRef<'a, T>
-where
-    T: IndexMut<Addr, Output = NodeValue<Node<2>, PLogic>>
-        + NodeAllocator<Value = PLogic, Node = Node<2>>,
-{
     #[inline(always)]
-    fn var_id(&mut self, id: Addr) -> Addr {
-        self.array.push(PLogic::Variable { id: id }, &[])
+    fn var<U: IntoAddr<Self, Addr>>(&mut self, id: U) -> Addr {
+        let addr = id.get_addr(self);
+        self.array.push(PLogic::Variable { id: addr }, &[])
     }
 
     fn not<F: Fn(&mut Self) -> Addr>(&mut self, inner: F) -> Addr {

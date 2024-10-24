@@ -5,7 +5,7 @@ use crate::{
 };
 
 use super::FirstOrderLogic;
-/*
+
 pub trait Ground<I: Indexing> {
     type Grounded;
     type Domain;
@@ -57,4 +57,3 @@ where
         grounded
     }
 }
- */

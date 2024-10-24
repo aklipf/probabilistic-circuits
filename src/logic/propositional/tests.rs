@@ -1,4 +1,4 @@
-use crate::tree::Mapping;
+use crate::tree::IntoAddr;
 
 use super::*;
 
@@ -52,7 +52,7 @@ fn build() {
 
 #[test]
 fn eval() {
-    let tree = PropositionalTree::build(|builder| {
+    let mut tree = PropositionalTree::build(|builder| {
         builder.or(
             |left| left.var("A"),
             |right| {
@@ -66,9 +66,9 @@ fn eval() {
 
     for x in 0..8 {
         let assignment = vec![x & 1 != 0, x & 2 != 0, x & 4 != 0];
-        let a = assignment[tree.get_id(&"A".to_string()).addr()];
-        let b = assignment[tree.get_id(&"B".to_string()).addr()];
-        let c = assignment[tree.get_id(&"C".to_string()).addr()];
+        let a = assignment["A".get_addr(&mut tree).addr()];
+        let b = assignment["B".get_addr(&mut tree).addr()];
+        let c = assignment["C".get_addr(&mut tree).addr()];
 
         assert_eq!(tree.eval(&assignment), a || (b && (!c)));
     }
