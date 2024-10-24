@@ -1,41 +1,69 @@
-use crate::tree::{builder::Builder, index::Indexing, traits::Buildable};
+use std::ops::IndexMut;
 
-use super::PropositionalLogic;
+use crate::tree::{Addr, IndexedMutRef, Mapping, Node, NodeAllocator, NodeValue};
 
-pub trait PropositionalLogicBuilder<I: Indexing> {
-    fn var(&mut self, id: I) -> I;
-    fn not<F: Fn(&mut Self) -> I>(&mut self, inner: F) -> I;
-    fn and<F: Fn(&mut Self) -> I, G: Fn(&mut Self) -> I>(&mut self, left: F, right: G) -> I;
-    fn or<F: Fn(&mut Self) -> I, G: Fn(&mut Self) -> I>(&mut self, left: F, right: G) -> I;
+use super::PLogic;
+
+pub trait PMut {
+    fn var_id(&mut self, id: Addr) -> Addr;
+    fn not<F: Fn(&mut Self) -> Addr>(&mut self, inner: F) -> Addr;
+    fn and<F: Fn(&mut Self) -> Addr, G: Fn(&mut Self) -> Addr>(
+        &mut self,
+        left: F,
+        right: G,
+    ) -> Addr;
+    fn or<F: Fn(&mut Self) -> Addr, G: Fn(&mut Self) -> Addr>(&mut self, left: F, right: G)
+        -> Addr;
 }
 
-impl<'a, B, I> PropositionalLogicBuilder<I> for Builder<'a, B, 2>
+pub trait NamedVariable {
+    fn var(&mut self, name: &str) -> Addr;
+}
+
+impl<'a, T> NamedVariable for IndexedMutRef<'a, T>
 where
-    I: Indexing,
-    B: Buildable<2, IDX = I, Fragment = PropositionalLogic<I>>,
+    T: IndexMut<Addr, Output = NodeValue<Node<2>, PLogic>>
+        + NodeAllocator<Value = PLogic, Node = Node<2>>
+        + Mapping,
+{
+    fn var(&mut self, name: &str) -> Addr {
+        let name_id = self.array.add_named(&name.to_string());
+        self.array.push(PLogic::Variable { id: name_id }, &[])
+    }
+}
+
+impl<'a, T> PMut for IndexedMutRef<'a, T>
+where
+    T: IndexMut<Addr, Output = NodeValue<Node<2>, PLogic>>
+        + NodeAllocator<Value = PLogic, Node = Node<2>>,
 {
     #[inline(always)]
-    fn var(&mut self, id: I) -> I {
-        self.push(PropositionalLogic::Variable { id: id }, &[])
+    fn var_id(&mut self, id: Addr) -> Addr {
+        self.array.push(PLogic::Variable { id: id }, &[])
     }
 
-    #[inline(always)]
-    fn not<F: Fn(&mut Self) -> I>(&mut self, inner: F) -> I {
+    fn not<F: Fn(&mut Self) -> Addr>(&mut self, inner: F) -> Addr {
         let inner_id = inner(self);
-        self.push(PropositionalLogic::Not, &[inner_id])
+        self.array.push(PLogic::Not, &[inner_id])
     }
 
-    #[inline(always)]
-    fn and<F: Fn(&mut Self) -> I, G: Fn(&mut Self) -> I>(&mut self, left: F, right: G) -> I {
+    fn and<F: Fn(&mut Self) -> Addr, G: Fn(&mut Self) -> Addr>(
+        &mut self,
+        left: F,
+        right: G,
+    ) -> Addr {
         let left_id = left(self);
         let right_id = right(self);
-        self.push(PropositionalLogic::And, &[left_id, right_id])
+        self.array.push(PLogic::And, &[left_id, right_id])
     }
 
-    #[inline(always)]
-    fn or<F: Fn(&mut Self) -> I, G: Fn(&mut Self) -> I>(&mut self, left: F, right: G) -> I {
+    fn or<F: Fn(&mut Self) -> Addr, G: Fn(&mut Self) -> Addr>(
+        &mut self,
+        left: F,
+        right: G,
+    ) -> Addr {
         let left_id = left(self);
         let right_id = right(self);
-        self.push(PropositionalLogic::Or, &[left_id, right_id])
+        self.array.push(PLogic::Or, &[left_id, right_id])
     }
 }

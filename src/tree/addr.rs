@@ -1,4 +1,4 @@
-use std::ops::{Deref, DerefMut, Index, IndexMut};
+use std::ops::{Index, IndexMut};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Addr {
@@ -65,11 +65,20 @@ pub struct IndexedRef<'a, T>
 where
     T: Index<Addr>,
 {
-    pub(super) array: &'a T,
-    pub(super) idx: Addr,
+    pub array: &'a T,
+    pub idx: Addr,
 }
 
-impl<'a, T> Deref for IndexedRef<'a, T>
+impl<'a, T> AsRef<T::Output> for IndexedRef<'a, T>
+where
+    T: Index<Addr>,
+{
+    fn as_ref(&self) -> &T::Output {
+        &self.array[self.idx]
+    }
+}
+
+/*impl<'a, T> Deref for IndexedRef<'a, T>
 where
     T: Index<Addr>,
 {
@@ -78,17 +87,35 @@ where
     fn deref(&self) -> &Self::Target {
         &self.array[self.idx]
     }
-}
+}*/
 
 pub struct IndexedMutRef<'a, T>
 where
     T: IndexMut<Addr>,
 {
-    pub(super) array: &'a mut T,
-    pub(super) idx: Addr,
+    pub array: &'a mut T,
+    pub idx: Addr,
 }
 
-impl<'a, T> Deref for IndexedMutRef<'a, T>
+impl<'a, T> AsRef<T::Output> for IndexedMutRef<'a, T>
+where
+    T: IndexMut<Addr>,
+{
+    fn as_ref(&self) -> &T::Output {
+        &self.array[self.idx]
+    }
+}
+
+impl<'a, T> AsMut<T::Output> for IndexedMutRef<'a, T>
+where
+    T: IndexMut<Addr>,
+{
+    fn as_mut(&mut self) -> &mut T::Output {
+        &mut self.array[self.idx]
+    }
+}
+
+/*impl<'a, T> Deref for IndexedMutRef<'a, T>
 where
     T: IndexMut<Addr>,
 {
@@ -106,4 +133,4 @@ where
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.array[self.idx]
     }
-}
+}*/

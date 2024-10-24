@@ -87,10 +87,10 @@ where
     [Addr; N]: Default,
     Tree<u32, N>: IndexMut<Addr> + NodeAllocator<Value = u32>,
 {
-    let child_id = origin.node.operands()[0];
+    let child_id = origin.as_ref().node.operands()[0];
 
     if child_id.is_addr() {
-        builder.b(origin.value.abs() as u32 * 2, |builder| {
+        builder.b(origin.as_ref().value.abs() as u32 * 2, |builder| {
             compiler_abs_even_tree::<N, T>(
                 IndexedRef {
                     array: origin.array,
@@ -100,7 +100,7 @@ where
             )
         })
     } else {
-        builder.a(origin.value.abs() as u32 * 2)
+        builder.a(origin.as_ref().value.abs() as u32 * 2)
     }
 }
 
@@ -224,42 +224,48 @@ fn indexed_ref() {
         *IndexedRef {
             array: &array,
             idx: Addr::new(0),
-        },
+        }
+        .as_ref(),
         1
     );
     assert_eq!(
         *IndexedRef {
             array: &array,
             idx: Addr::new(2),
-        },
+        }
+        .as_ref(),
         3
     );
     assert_eq!(
         *IndexedRef {
             array: &array,
             idx: Addr::new(1),
-        },
+        }
+        .as_ref(),
         4
     );
 }
 
 #[test]
-fn indexed_mutref() {
+fn indexed_mut() {
     let mut array = Indexed { array: [1, 4, 3] };
     *IndexedMutRef {
         array: &mut array,
         idx: Addr::new(0),
-    } = 6;
+    }
+    .as_mut() = 6;
 
     *IndexedMutRef {
         array: &mut array,
         idx: Addr::new(1),
-    } = 2;
+    }
+    .as_mut() = 2;
 
     *IndexedMutRef {
         array: &mut array,
         idx: Addr::new(2),
-    } = 4;
+    }
+    .as_mut() = 4;
 
     assert_eq!(array.array, [6, 2, 4]);
 
@@ -267,21 +273,24 @@ fn indexed_mutref() {
         *IndexedMutRef {
             array: &mut array,
             idx: Addr::new(0),
-        },
+        }
+        .as_ref(),
         6
     );
     assert_eq!(
         *IndexedMutRef {
             array: &mut array,
             idx: Addr::new(1),
-        },
+        }
+        .as_ref(),
         2
     );
     assert_eq!(
         *IndexedMutRef {
             array: &mut array,
             idx: Addr::new(2),
-        },
+        }
+        .as_ref(),
         4
     );
 }

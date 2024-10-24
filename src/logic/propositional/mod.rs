@@ -2,27 +2,29 @@ pub mod builder;
 pub mod eval;
 pub mod node;
 
-use node::PropositionalNode;
+#[cfg(test)]
+mod tests;
 
-use crate::tree::index::Indexing;
+pub use builder::*;
+pub use eval::*;
+pub use node::*;
 
 use super::fragment::Fragment;
 
-#[derive(Clone, Copy, Debug)]
-pub enum PropositionalLogic<IDX: Indexing = u32> {
-    Variable { id: IDX },
+use crate::tree::{Addr, Node, Tree};
+
+pub use PLogic as PropositionalLogic;
+pub type PropositionalTree = Tree<PropositionalLogic, 2>;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum PLogic {
+    Variable { id: Addr },
     Not,
     And,
     Or,
-    None,
 }
 
-impl<I: Indexing> Fragment<I, 2> for PropositionalLogic<I> {
-    type Node = PropositionalNode<I>;
-}
-
-impl<IDX: Indexing> Default for PropositionalLogic<IDX> {
-    fn default() -> Self {
-        PropositionalLogic::None
-    }
+impl Fragment for PLogic {
+    type Tree = Tree<PLogic, 2>;
+    type Node = Node<2>;
 }

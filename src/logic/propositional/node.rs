@@ -1,65 +1,91 @@
-use crate::tree::{
-    index::Indexing,
-    node::{LinkinNode, Node},
-    traits::Mapping,
-    tree::Tree,
-    view::NodeView,
-};
+use std::{fmt::Display, ops::Index};
 
-use super::{super::fragment::FragmentNode, PropositionalLogic};
+use crate::tree::{Addr, IndexedRef, LinkingNode, Mapping, Node, NodeValue, Tree};
 
-pub type PropositionalNode<I> = Node<I, PropositionalLogic<I>, 2>;
+use super::{super::fragment::FragmentNode, PLogic};
 
-/*impl<I: Indexing> Deref for PropositionalNode<I> {
-    type Target = PropositionalLogic<I>;
+pub trait PRef {
+    fn left(&self) -> Self;
+    fn right(&self) -> Self;
+    fn inner(&self) -> Self;
+}
 
-    fn deref(&self) -> &Self::Target {
-        &self.symbol
-    }
-}*/
-
-impl<I: Indexing> FragmentNode<I, PropositionalLogic<I>, 2> for PropositionalNode<I> {
-    fn fmt_display(
-        f: &mut std::fmt::Formatter,
-        node: &NodeView<PropositionalLogic<I>, I, 2>,
-    ) -> std::fmt::Result {
-        match node.symbol() {
-            PropositionalLogic::Variable { id } => {
-                write!(
-                    f,
-                    "{}",
-                    node.get_named(id).unwrap_or(&format!("Anon{}", id.addr()))
-                )
-            }
-            PropositionalLogic::Not => {
-                write!(f, "\u{00AC}")?;
-                Self::fmt_display(f, &node.input())
-            }
-            PropositionalLogic::And => {
-                write!(f, "(")?;
-                Self::fmt_display(f, &node.left())?;
-                write!(f, "\u{2227}")?;
-                Self::fmt_display(f, &node.right())?;
-                write!(f, ")")
-            }
-            PropositionalLogic::Or => {
-                write!(f, "(")?;
-                Self::fmt_display(f, &node.left())?;
-                write!(f, "\u{2228}")?;
-                Self::fmt_display(f, &node.right())?;
-                write!(f, ")")
-            }
-            PropositionalLogic::None => panic!("Can't display a partially initialised tree."),
+impl<'a, T> PRef for IndexedRef<'a, T>
+where
+    T: Index<Addr, Output = NodeValue<Node<2>, PLogic>>,
+{
+    fn left(&self) -> Self {
+        IndexedRef {
+            array: &self.array,
+            idx: self.as_ref().node.operands()[0],
         }
     }
 
+    fn right(&self) -> Self {
+        IndexedRef {
+            array: &self.array,
+            idx: self.as_ref().node.operands()[1],
+        }
+    }
+
+    fn inner(&self) -> Self {
+        IndexedRef {
+            array: &self.array,
+            idx: self.as_ref().node.operands()[0],
+        }
+    }
+}
+
+impl Display for Tree<PLogic, 2> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.output(), f)
+    }
+}
+
+impl<'a, T> Display for IndexedRef<'a, T>
+where
+    T: Index<Addr, Output = NodeValue<Node<2>, PLogic>> + Mapping,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.as_ref().value {
+            PLogic::Variable { id } => {
+                write!(
+                    f,
+                    "{}",
+                    self.array
+                        .get_named(id)
+                        .unwrap_or(&format!("Anon{}", id.addr()))
+                )
+            }
+            PLogic::Not => {
+                write!(f, "\u{00AC}")?;
+                Display::fmt(&self.inner(), f)
+            }
+            PLogic::And => {
+                write!(f, "(")?;
+                Display::fmt(&self.left(), f)?;
+                write!(f, "\u{2227}")?;
+                Display::fmt(&self.right(), f)?;
+                write!(f, ")")
+            }
+            PLogic::Or => {
+                write!(f, "(")?;
+                Display::fmt(&self.left(), f)?;
+                write!(f, "\u{2228}")?;
+                Display::fmt(&self.right(), f)?;
+                write!(f, ")")
+            }
+        }
+    }
+}
+
+impl FragmentNode for NodeValue<Node<2>, PLogic> {
     fn arity(&self) -> usize {
-        match self.symbol() {
-            PropositionalLogic::Variable { id: _ } => 0,
-            PropositionalLogic::Not => 1,
-            PropositionalLogic::And => 2,
-            PropositionalLogic::Or => 2,
-            PropositionalLogic::None => 0,
+        match self.value {
+            PLogic::Variable { id: _ } => 0,
+            PLogic::Not => 1,
+            PLogic::And => 2,
+            PLogic::Or => 2,
         }
     }
 }

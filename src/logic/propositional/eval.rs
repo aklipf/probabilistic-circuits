@@ -1,41 +1,32 @@
 use std::ops::Index;
 
-use crate::tree::{
-    index::Indexing,
-    tree::{ExpressionTree, Tree},
-    view::NodeView,
-};
+use crate::tree::{Addr, IndexedRef, Node, NodeValue, Tree};
 
-use super::{node::PropositionalNode, PropositionalLogic};
+use super::{PLogic, PRef};
 
 pub trait Eval<D> {
     fn eval(&self, assignment: &Vec<D>) -> bool;
 }
 
-fn recursive_eval<'a, I: Indexing>(
-    node: &NodeView<'a, PropositionalLogic<I>, I, 2>,
-    assignment: &Vec<bool>,
-) -> bool {
-    match node.symbol() {
-        PropositionalLogic::Variable { id } => assignment[id.addr()],
-        PropositionalLogic::Not => !recursive_eval(&node.input(), assignment),
-        PropositionalLogic::And => {
-            recursive_eval(&node.left(), assignment) && recursive_eval(&node.right(), assignment)
+impl<'a, T> Eval<bool> for IndexedRef<'a, T>
+where
+    T: Index<Addr, Output = NodeValue<Node<2>, PLogic>>,
+{
+    fn eval(&self, assignment: &Vec<bool>) -> bool {
+        match self.as_ref().value {
+            PLogic::Variable { id } => assignment[id.addr()],
+            PLogic::Not => !self.inner().eval(assignment),
+            PLogic::And => self.left().eval(assignment) && self.right().eval(assignment),
+            PLogic::Or => self.left().eval(assignment) || self.right().eval(assignment),
         }
-        PropositionalLogic::Or => {
-            recursive_eval(&node.left(), assignment) || recursive_eval(&node.right(), assignment)
-        }
-        _ => panic!(),
     }
 }
 
-impl<I> Eval<bool> for Tree<PropositionalLogic<I>, I, 2>
+impl Eval<bool> for Tree<PLogic, 2>
 where
-    I: Indexing,
-    Tree<PropositionalLogic<I>, I, 2>:
-        Index<I, Output = PropositionalNode<I>> + ExpressionTree<PropositionalLogic<I>, I, 2>,
+    Tree<PLogic, 2>: Index<Addr, Output = NodeValue<Node<2>, PLogic>>,
 {
     fn eval(&self, assignment: &Vec<bool>) -> bool {
-        recursive_eval(&self.output(), assignment)
+        self.output().eval(assignment)
     }
 }

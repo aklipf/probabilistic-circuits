@@ -15,7 +15,7 @@ pub trait NodeAllocator:
     Index<Addr, Output = NodeValue<Self::Node, Self::Value>>
     + IndexMut<Addr, Output = NodeValue<Self::Node, Self::Value>>
 {
-    type Value: Copy + Debug + Default + PartialEq;
+    type Value: Copy + Debug + PartialEq;
     type Node: LinkingNode + Debug + Default + PartialEq;
 
     fn push(&mut self, symbol: Self::Value, operands: &[Addr]) -> Addr;

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
 use super::addr::{Addr, IndexedMutRef, IndexedRef};
@@ -7,15 +7,15 @@ use super::node::{LinkingNode, Node};
 use super::traits::{Mapping, NodeAllocator};
 
 #[derive(Debug, Default, PartialEq)]
-pub struct NodeValue<N: LinkingNode, T: Copy + Default + Debug> {
+pub struct NodeValue<N: LinkingNode, T: Copy + Debug + PartialEq> {
     pub node: N,
     pub value: T,
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Tree<T, const MAX_CHILDS: usize = 2>
 where
-    T: Copy + Default + Debug,
+    T: Copy + Debug + PartialEq,
 {
     pub(super) named: Vec<Option<String>>,
     pub(super) mapping: HashMap<String, usize>,
@@ -23,9 +23,23 @@ where
     pub(super) output: Addr,
 }
 
+impl<T, const MAX_CHILDS: usize> Default for Tree<T, MAX_CHILDS>
+where
+    T: Copy + Debug + PartialEq,
+{
+    fn default() -> Self {
+        Self {
+            named: Default::default(),
+            mapping: Default::default(),
+            nodes: Default::default(),
+            output: Default::default(),
+        }
+    }
+}
+
 impl<T, const MAX_CHILDS: usize> Tree<T, MAX_CHILDS>
 where
-    T: Copy + Default + Debug,
+    T: Copy + Debug + PartialEq,
 {
     pub fn output<'a>(&'a self) -> IndexedRef<'a, Self> {
         let output = self.output;
@@ -47,7 +61,7 @@ where
     }
 
     pub fn compile<
-        U: Copy + Default + Debug,
+        U: Copy + Debug + PartialEq,
         const N: usize,
         B: Fn(IndexedRef<Self>, &mut IndexedMutRef<Tree<U, N>>) -> Addr,
     >(
@@ -100,7 +114,7 @@ where
 
 impl<T, const MAX_CHILDS: usize> Index<Addr> for Tree<T, MAX_CHILDS>
 where
-    T: Copy + Default + Debug,
+    T: Copy + Debug + PartialEq,
 {
     type Output = NodeValue<Node<MAX_CHILDS>, T>;
 
@@ -112,7 +126,7 @@ where
 
 impl<T, const MAX_CHILDS: usize> IndexMut<Addr> for Tree<T, MAX_CHILDS>
 where
-    T: Copy + Default + Debug,
+    T: Copy + Debug + PartialEq,
 {
     #[inline]
     fn index_mut<'a>(&'a mut self, index: Addr) -> &'a mut NodeValue<Node<MAX_CHILDS>, T> {
@@ -122,7 +136,7 @@ where
 
 impl<T, const MAX_CHILDS: usize> NodeAllocator for Tree<T, MAX_CHILDS>
 where
-    T: Copy + Default + Debug + PartialEq,
+    T: Copy + Debug + PartialEq,
 {
     type Value = T;
     type Node = Node<MAX_CHILDS>;
@@ -161,18 +175,9 @@ where
     }
 }
 
-impl<T, const MAX_CHILDS: usize> Display for Tree<T, MAX_CHILDS>
-where
-    T: Copy + Default + Debug,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.output().fmt(f)
-    }
-}
-
 impl<T, const MAX_CHILDS: usize> Mapping for Tree<T, MAX_CHILDS>
 where
-    T: Copy + Default + Debug,
+    T: Copy + Debug + PartialEq,
 {
     fn add_named(&mut self, name: &String) -> Addr {
         let id = self.get_id(name);
