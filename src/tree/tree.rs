@@ -60,6 +60,13 @@ where
         tree
     }
 
+    pub fn builder<B: Fn(&mut IndexedMutRef<Self>) -> Addr>(&mut self, builder: B) {
+        self.output = builder(&mut IndexedMutRef {
+            array: self,
+            idx: Addr::NONE,
+        })
+    }
+
     pub fn compile<
         U: Copy + Debug + PartialEq,
         const N: usize,
@@ -216,7 +223,7 @@ where
     fn fmt_named(&self, id: Addr) -> String {
         match self.get_named(id) {
             Some(name) => name.clone(),
-            None => format!("Anon{}", id.addr()),
+            None => format!("x{}", id.addr() + 1),
         }
     }
 }
