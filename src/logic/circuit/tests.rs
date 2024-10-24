@@ -1,8 +1,23 @@
 use crate::logic::propositional::{PMut, PropositionalTree};
 use crate::logic::circuit::propositional_to_circuit;
+use crate::logic::Eval;
+
+use super::{PCMut, ProbabilisticCircuitTree};
 
 
+#[test]
+fn eval(){
+    let pc = ProbabilisticCircuitTree::build(|builder| builder.sum(|left| left.prod(|left| left.var("A"), |right| right.not_var("B")), |right| right.sum(|left| left.not_var("A"), |right| right.var("C"))));
 
+    assert_eq!(pc.eval(&vec![false,false,false]),0.0);
+    assert_eq!(pc.eval(&vec![true,false,false]),1.0);
+    assert_eq!(pc.eval(&vec![false,true,false]),0.0);
+    assert_eq!(pc.eval(&vec![true,true,false]),2.0);
+    assert_eq!(pc.eval(&vec![false,false,true]),1.0);
+    assert_eq!(pc.eval(&vec![true,false,true]),2.0);
+    assert_eq!(pc.eval(&vec![false,true,true]),1.0);
+    assert_eq!(pc.eval(&vec![true,true,true]),3.0);
+}
 
 #[test]
 fn compilation() {

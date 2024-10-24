@@ -8,7 +8,6 @@ mod tests;
 
 pub use builder::*;
 pub use compile::*;
-pub use eval::*;
 pub use node::*;
 
 use crate::tree::{Addr, Node, Tree};
