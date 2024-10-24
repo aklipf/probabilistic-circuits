@@ -12,7 +12,7 @@ where
     pub(super) root: IndexedMutRef<'a, Tree<T, MAX_CHILDS>>,
     pub(super) current: Addr,
 }
-/*
+
 impl<'a, T, const MAX_CHILDS: usize> NodeRecycler<'a, T, MAX_CHILDS>
 where
     T: Copy + Default + Debug,
@@ -116,4 +116,3 @@ where
         Ok(self.current_idx)
     }
 }
- */
