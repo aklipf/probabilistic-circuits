@@ -11,7 +11,7 @@ macro_rules! recycle {
 #[macro_export]
 macro_rules! propositional {
     ($expr: expr) => {
-        Tree::<PropositionalLogic>::build($expr)
+        Tree::<PLogic>::build($expr)
     };
 }
 

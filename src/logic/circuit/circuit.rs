@@ -54,25 +54,25 @@ impl<I: Indexing> FragmentNode<I, ProbabilisticCircuit<I>, 2> for ProbabilisticN
                 }
             }
             ProbabilisticCircuit::Product => {
-                let mut operands = self.operands();
+                let mut operands = self.operands_iter();
                 write!(f, "(")?;
-                tree[operands.next().unwrap()].fmt_display(f, tree)?;
+                tree[operands.next().unwrap()].fmt_display(f)?;
                 write!(f, "*")?;
-                tree[operands.next().unwrap()].fmt_display(f, tree)?;
+                tree[operands.next().unwrap()].fmt_display(f)?;
                 write!(f, ")")
             }
             ProbabilisticCircuit::Sum => {
-                let mut operands = self.operands();
+                let mut operands = self.operands_iter();
                 write!(f, "(")?;
-                tree[operands.next().unwrap()].fmt_display(f, tree)?;
+                tree[operands.next().unwrap()].fmt_display(f)?;
                 write!(f, "+")?;
-                tree[operands.next().unwrap()].fmt_display(f, tree)?;
+                tree[operands.next().unwrap()].fmt_display(f)?;
                 write!(f, ")")
             }
             ProbabilisticCircuit::Weight { w } => {
-                let mut operands = self.operands();
+                let mut operands = self.operands_iter();
                 write!(f, "{:.3}(", w)?;
-                tree[operands.next().unwrap()].fmt_display(f, tree)?;
+                tree[operands.next().unwrap()].fmt_display(f)?;
                 write!(f, ")")
             }
             ProbabilisticCircuit::None => panic!("Can't display a partially initialised tree."),

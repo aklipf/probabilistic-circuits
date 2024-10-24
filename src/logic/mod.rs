@@ -1,8 +1,6 @@
-pub mod cnf;
-#[macro_use]
-pub mod expr;
 pub mod circuit;
 pub mod first_order;
-pub mod fragment;
-pub mod nnf;
+pub mod semantic;
 pub mod propositional;
+
+pub use semantic::{Semantic, SemanticNode};
