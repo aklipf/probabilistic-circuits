@@ -1,10 +1,17 @@
 pub mod builder;
+pub mod compile;
+pub mod eval;
 pub mod node;
 
-use crate::tree::{Addr, Node, Tree};
+#[cfg(test)]
+mod tests;
 
 pub use builder::*;
+pub use compile::*;
+pub use eval::*;
 pub use node::*;
+
+use crate::tree::{Addr, Node, Tree};
 
 use super::Semantic;
 

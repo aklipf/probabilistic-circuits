@@ -74,8 +74,18 @@ where
     >(
         &self,
         builder: B,
+        keep_variables: bool,
     ) -> Tree<U, N> {
-        let mut tree: Tree<U, N> = Default::default();
+        let mut tree: Tree<U, N> = if keep_variables {
+            Tree {
+                named: self.named.clone(),
+                mapping: self.mapping.clone(),
+                nodes: Default::default(),
+                output: Default::default(),
+            }
+        } else {
+            Default::default()
+        };
 
         tree.output = builder(
             self.output(),

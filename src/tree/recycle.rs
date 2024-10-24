@@ -1,9 +1,9 @@
-use super::addr::{Addr, IndexedMutRef};
-use super::node::Node;
-use super::traits::NodeAllocator;
-use super::tree::Tree;
-use std::fmt::Debug;
-use std::ops::{Index, IndexMut};
+
+pub trait Replacer {
+    fn replace(&mut self);
+}
+/*
+
 
 pub struct NodeRecycler<'a, T, const MAX_CHILDS: usize>
 where
@@ -116,3 +116,4 @@ where
         Ok(self.current_idx)
     }
 }
+ */

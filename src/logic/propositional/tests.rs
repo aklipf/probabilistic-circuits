@@ -1,4 +1,6 @@
-use crate::tree::IntoAddr;
+use nnf::propositional_to_nnf;
+
+use crate::{logic::semantic::Eval, tree::IntoAddr};
 
 use super::*;
 
@@ -72,4 +74,57 @@ fn eval() {
 
         assert_eq!(tree.eval(&assignment), a || (b && (!c)));
     }
+}
+
+#[test]
+fn nnf() {
+    let input = PropositionalTree::build(|builder| {
+        builder.not(|inner| {
+            inner.not(|inner| {
+                inner.and(
+                    |left| {
+                        left.not(|inner| {
+                            inner.or(
+                                |left| left.not(|inner| inner.var("A")),
+                                |right| {
+                                    right.and(
+                                        |left| left.not(|inner| inner.var("A")),
+                                        |right| {
+                                            right.and(
+                                                |left| {
+                                                    left.and(
+                                                        |left| left.not(|inner| inner.var("B")),
+                                                        |right| right.var("C"),
+                                                    )
+                                                },
+                                                |right| {
+                                                    right.not(|inner| {
+                                                        inner.and(
+                                                            |left| left.var("A"),
+                                                            |right| right.var("C"),
+                                                        )
+                                                    })
+                                                },
+                                            )
+                                        },
+                                    )
+                                },
+                            )
+                        })
+                    },
+                    |right| {
+                        right.not(|inner| {
+                            inner.or(
+                                |left| left.not(|inner| inner.var("D")),
+                                |right| right.var("B"),
+                            )
+                        })
+                    },
+                )
+            })
+        })
+    });
+
+    let nnf=propositional_to_nnf(&input);
+    assert_eq!(format!("{nnf}"),"((A∧(A∨((B∨¬C)∨(A∧C))))∧(D∧¬B))");
 }

@@ -1,21 +1,21 @@
-use crate::tree::{index::Indexing, traits::Mapping};
+use crate::tree::{Addr, Mapping};
 
-pub trait Domain<I: Indexing> {
+pub trait Domain {
     type Type;
 
-    fn var_id(&self) -> I;
+    fn var_id(&self) -> Addr;
     fn iter(&self) -> impl Iterator<Item = Self::Type>;
     fn card(&self) -> usize;
 }
 
-pub struct Boolean<I: Indexing> {
-    var_id: I,
+pub struct Boolean {
+    var_id: Addr,
 }
 
-impl<I: Indexing> Domain<I> for Boolean<I> {
+impl Domain for Boolean {
     type Type = bool;
 
-    fn var_id(&self) -> I {
+    fn var_id(&self) -> Addr {
         self.var_id
     }
 
@@ -28,24 +28,24 @@ impl<I: Indexing> Domain<I> for Boolean<I> {
     }
 }
 
-pub struct Integer<I: Indexing> {
-    var_id: I,
+pub struct Integer {
+    var_id: Addr,
     card: usize,
 }
 
-impl<I: Indexing> Integer<I> {
-    pub fn new<M: Mapping<I>>(expr: &M, name: &String, card: usize) -> Self {
+impl Integer {
+    pub fn new<M: Mapping>(expr: &M, name: &String, card: usize) -> Self {
         Integer {
-            var_id: expr.get_id(name).unwrap(),
+            var_id: expr.get_id(name),
             card: card,
         }
     }
 }
 
-impl<I: Indexing> Domain<I> for Integer<I> {
+impl Domain for Integer {
     type Type = usize;
 
-    fn var_id(&self) -> I {
+    fn var_id(&self) -> Addr {
         self.var_id
     }
 

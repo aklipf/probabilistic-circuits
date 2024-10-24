@@ -19,3 +19,9 @@ where
         *self
     }
 }
+
+pub trait Eval<D> {
+    type Output;
+
+    fn eval(&self, assignment: &Vec<D>) -> Self::Output;
+}
