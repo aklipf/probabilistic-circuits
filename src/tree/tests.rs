@@ -128,7 +128,7 @@ fn tree_compile() {
             ],
             output: Addr::new(1),
         }
-        .compile(compiler_abs_even_tree::<2, u32>, false),
+        .compile(compiler_abs_even_tree::<2, u32>),
         Tree {
             named: Default::default(),
             mapping: Default::default(),

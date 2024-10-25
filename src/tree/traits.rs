@@ -3,7 +3,7 @@ use std::ops::{Index, IndexMut};
 
 use super::{addr::Addr, node::LinkingNode, tree::NodeValue};
 
-pub trait Mapping {
+pub trait Mapping: IntoIterator<Item = Addr> {
     fn add_named(&mut self, name: &String) -> Addr;
     fn add_anon(&mut self) -> Addr;
     fn get_id(&self, name: &String) -> Addr;

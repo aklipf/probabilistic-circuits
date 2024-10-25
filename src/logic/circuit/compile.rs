@@ -1,6 +1,10 @@
 use crate::{
-    logic::propositional::{PLogic, PRef, PropositionalTree},
-    tree::{Addr, IndexedMutRef, IndexedRef},
+    logic::{
+        first_order::{FOLogic, FORef, FirstOrderTree},
+        propositional::{PLogic, PRef, PropositionalTree},
+    },
+    solver::domain::Integer,
+    tree::{Addr, IndexedMutRef, IndexedRef, Mapping},
 };
 
 use super::{PCMut, ProbabilisticCircuitTree};
@@ -49,5 +53,54 @@ fn p2c_recusive(
 }
 
 pub fn propositional_to_circuit(tree: &PropositionalTree) -> ProbabilisticCircuitTree {
-    tree.compile(|src, dst| p2c_recusive(src, dst, false), true)
+    tree.compile(|src, dst| {
+        dst.array.copy_named(src.array);
+        p2c_recusive(src, dst, false)
+    })
+}
+
+fn fo2c_recusive(
+    src: IndexedRef<FirstOrderTree>,
+    dst: &mut IndexedMutRef<ProbabilisticCircuitTree>,
+    reverse: bool,
+) -> Addr {
+    match src.as_ref().value {
+        FOLogic::Not => fo2c_recusive(src.inner(), dst, !reverse),
+        FOLogic::And => {
+            if reverse {
+                dst.sum(
+                    |left| fo2c_recusive(src.left(), left, reverse),
+                    |right| fo2c_recusive(src.right(), right, reverse),
+                )
+            } else {
+                dst.prod(
+                    |left| fo2c_recusive(src.left(), left, reverse),
+                    |right| fo2c_recusive(src.right(), right, reverse),
+                )
+            }
+        }
+        FOLogic::Or => {
+            if reverse {
+                dst.prod(
+                    |left| fo2c_recusive(src.left(), left, reverse),
+                    |right| fo2c_recusive(src.right(), right, reverse),
+                )
+            } else {
+                dst.sum(
+                    |left| fo2c_recusive(src.left(), left, reverse),
+                    |right| fo2c_recusive(src.right(), right, reverse),
+                )
+            }
+        }
+        FOLogic::Predicate { id } => todo!(),
+        FOLogic::Universal { id } => todo!(),
+        FOLogic::Existential { id } => todo!(),
+    }
+}
+
+pub fn first_order_to_circuit(
+    tree: &FirstOrderTree,
+    domains: &[Integer],
+) -> ProbabilisticCircuitTree {
+    tree.compile(|src, dst| fo2c_recusive(src, dst, false))
 }

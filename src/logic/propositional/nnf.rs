@@ -49,5 +49,8 @@ fn p2nnf_recusive(
 }
 
 pub fn propositional_to_nnf(tree: &PropositionalTree) -> PropositionalTree {
-    tree.compile(|src, dst| p2nnf_recusive(src, dst, false), true)
+    tree.compile(|src, dst| {
+        dst.array.copy_named(src.array);
+        p2nnf_recusive(src, dst, false)
+    })
 }
