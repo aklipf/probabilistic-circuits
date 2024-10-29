@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::iter::Map;
-use std::ops::{Index, IndexMut, Range};
+use std::ops::{Index, IndexMut};
 
 use super::addr::{Addr, IndexedMutRef, IndexedRef};
 use super::node::{LinkingNode, Node};

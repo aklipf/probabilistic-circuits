@@ -1,10 +1,13 @@
 pub mod builder;
+pub mod compile;
+pub mod ground;
 pub mod node;
 
 #[cfg(test)]
 mod tests;
 
 pub use builder::*;
+pub use compile::*;
 pub use node::*;
 
 use crate::tree::{Addr, Node, Tree};

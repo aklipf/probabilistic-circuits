@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Hash)]
 pub struct Addr {
     pub addr: usize,
 }

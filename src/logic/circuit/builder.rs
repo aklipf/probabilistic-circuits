@@ -24,6 +24,16 @@ pub trait PCMut: Sized {
         weight_right: f32,
         right: G,
     ) -> Addr;
+    fn prod_n<F: Fn(&mut Self, T::Item) -> Addr, T: Iterator>(
+        &mut self,
+        iter: &mut T,
+        inner: F,
+    ) -> Addr;
+    fn sum_n<F: Fn(&mut Self, T::Item) -> (Addr, f32), T: Iterator>(
+        &mut self,
+        iter: &mut T,
+        inner: F,
+    ) -> Addr;
 }
 
 impl<'a, T> PCMut for IndexedMutRef<'a, T>
@@ -100,5 +110,48 @@ where
             },
             &[left_id, right_id],
         )
+    }
+
+    fn prod_n<F: Fn(&mut Self, U::Item) -> Addr, U: Iterator>(
+        &mut self,
+        iter: &mut U,
+        inner: F,
+    ) -> Addr {
+        let mut current_id = match iter.next() {
+            Some(value) => inner(self, value),
+            None => {
+                return Addr::NONE;
+            }
+        };
+        for next in iter {
+            let inner_id = inner(self, next);
+            current_id = self.array.push(PCicruit::Product, &[current_id, inner_id]);
+        }
+        current_id
+    }
+
+    fn sum_n<F: Fn(&mut Self, U::Item) -> (Addr, f32), U: Iterator>(
+        &mut self,
+        iter: &mut U,
+        inner: F,
+    ) -> Addr {
+        let (mut current_id, mut current_w) = match iter.next() {
+            Some(value) => inner(self, value),
+            None => {
+                return Addr::NONE;
+            }
+        };
+        for next in iter {
+            let (inner_id, inner_weight) = inner(self, next);
+            current_id = self.array.push(
+                PCicruit::Sum {
+                    left: current_w,
+                    right: inner_weight,
+                },
+                &[current_id, inner_id],
+            );
+            current_w = 1.0;
+        }
+        current_id
     }
 }

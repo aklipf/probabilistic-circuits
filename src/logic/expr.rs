@@ -1,14 +1,4 @@
 #[macro_export]
-macro_rules! recycle {
-    ($root:expr) => {
-        |recycler| recycler.cut($root, &[])
-    };
-    ($root:expr,$($leafs:expr),*) => {
-        |recycler| recycler.cut($root, &[$($leafs),*])
-    };
-}
-
-#[macro_export]
 macro_rules! propositional {
     ($expr: expr) => {
         Tree::<PLogic>::build($expr)
@@ -102,45 +92,17 @@ macro_rules! disjunction {
 
 #[macro_export]
 macro_rules! pred {
-    ($pred: tt,$($var: tt),+) => {
-        pred!(id:$pred,$(id:$var),+)
-    };
-    (id:$id: tt,ids:$slice:expr) => {
-        |builder| builder.pred($id, $slice)
-    };
-    (id:$id: tt,$(id:$var_id: tt),+) => {
+    ($id: tt,$($var_id: tt),+) => {
         |builder| builder.pred($id, &[$($var_id),+])
     };
-    (name:$name: tt,$(name:$var_name: tt),+) => {
-        |builder| {
-            let pred_id=builder.add_named(&$name.to_string());
-            let vars_id=[$(builder.add_named(&$var_name.to_string())),+];
-            builder.pred(pred_id, &vars_id)
-        }
-    };
-    ($pred: tt) => {
-        pred!(id:pred)
-    };
-    (id:$id: tt) => {
+    ($id: tt) => {
         |builder| builder.pred($id, &[])
-    };
-    (name:$name: tt) => {
-        |builder| builder.pred(builder.add_named(&$name.to_string()), &[])
     };
 }
 
 #[macro_export]
 macro_rules! every {
     ($id: tt,$e: expr) => {
-        every!(id:$id,$e)
-    };
-    (name:$name: tt,$e: expr) => {
-        |builder| {
-            let id = builder.add_named(&$name.to_string());
-            builder.every(id, $e)
-        }
-    };
-    (id:$id: tt,$e: expr) => {
         |builder| builder.every($id, $e)
     };
 }
@@ -148,15 +110,6 @@ macro_rules! every {
 #[macro_export]
 macro_rules! every_n {
     ($id: expr,$e: expr) => {
-        every_n!(id:$id,$e)
-    };
-    (name:$name: tt,$e: expr) => {
-        |builder| {
-            let id = builder.add_named(&$name.to_string());
-            builder.every_n(id, $e)
-        }
-    };
-    (id:$id: expr,$e: expr) => {
         |builder| builder.every_n($id, $e)
     };
 }
