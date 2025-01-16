@@ -6,18 +6,18 @@ use super::addr::{Addr, IndexedMutRef, IndexedRef};
 use super::node::{LinkingNode, Node};
 use super::traits::{Mapping, NodeAllocator};
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct NodeValue<N: LinkingNode, T: Copy + Debug + PartialEq> {
     pub node: N,
     pub value: T,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Tree<T, const MAX_CHILDS: usize = 2>
 where
     T: Copy + Debug + PartialEq,
 {
-    pub(super) named: Vec<Option<String>>,
+    pub named: Vec<Option<String>>,
     pub(super) mapping: HashMap<String, usize>,
     pub(super) nodes: Vec<NodeValue<Node<MAX_CHILDS>, T>>,
     pub(super) output: Addr,
@@ -45,6 +45,13 @@ where
         let output = self.output;
         IndexedRef {
             array: &self,
+            idx: output,
+        }
+    }
+    pub fn mut_output<'a>(&'a mut self) -> IndexedMutRef<'a, Self> {
+        let output = self.output;
+        IndexedMutRef {
+            array: self,
             idx: output,
         }
     }

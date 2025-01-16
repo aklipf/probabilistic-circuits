@@ -1,4 +1,4 @@
-use crate::logic::circuit::{propositional_to_circuit};
+use crate::logic::circuit::propositional_to_circuit;
 use crate::logic::first_order::{FOMut, FirstOrderTree};
 use crate::logic::propositional::{PMut, PropositionalTree};
 use crate::logic::Eval;
@@ -112,6 +112,6 @@ fn compilation_fol() {
         }],
     );
     println!("{circuit}");
-    let mar=circuit.eval(&vec![true,true,true,true,true,true,true,true,true]);
+    let mar = circuit.eval(&vec![true, true, true, true, true, true, true, true, true]);
     println!("{mar}");
 }

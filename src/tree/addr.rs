@@ -95,6 +95,18 @@ where
     }
 }
 
+impl<'a, T> IndexedMutRef<'a, T>
+where
+    T: IndexMut<Addr>,
+{
+    pub fn get_ref(&self) -> IndexedRef<'_, T> {
+        IndexedRef {
+            array: &self.array,
+            idx: self.idx,
+        }
+    }
+}
+
 impl<'a, T> AsMut<T::Output> for IndexedMutRef<'a, T>
 where
     T: IndexMut<Addr>,

@@ -1,4 +1,5 @@
 pub mod builder;
+pub mod dnf;
 pub mod eval;
 pub mod nnf;
 pub mod node;
@@ -7,6 +8,7 @@ pub mod node;
 mod tests;
 
 pub use builder::*;
+pub use dnf::*;
 pub use nnf::*;
 pub use node::*;
 

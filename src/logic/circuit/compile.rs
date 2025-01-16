@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     logic::{
@@ -6,10 +6,40 @@ use crate::{
         propositional::{PLogic, PRef, PropositionalTree},
     },
     solver::domain::Integer,
-    tree::{Addr, IndexedMutRef, IndexedRef},
+    tree::{Addr, IndexedMutRef, IndexedRef, LinkingNode},
 };
 
 use super::{PCMut, ProbabilisticCircuitTree};
+
+fn collect_recusive(subtree: IndexedRef<PropositionalTree>, vars: &mut HashSet<Addr>) {
+    match subtree.as_ref().value {
+        PLogic::Variable { id } => {
+            vars.insert(id);
+        }
+        _ => {
+            for &child in subtree.as_ref().node.operands() {
+                if child.is_addr() {
+                    collect_recusive(
+                        IndexedRef {
+                            array: subtree.array,
+                            idx: child,
+                        },
+                        vars,
+                    );
+                }
+            }
+        }
+    }
+}
+
+pub fn enumerate_variables(vars: Vec<Addr>) -> impl Iterator<Item = Vec<(Addr, bool)>> {
+    (0usize..(1 << vars.len())).map(move |i| {
+        vars.iter()
+            .copied()
+            .zip((0usize..vars.len()).map(|j| (1 << j) & i != 0))
+            .collect::<Vec<(Addr, bool)>>()
+    })
+}
 
 fn p2c_recusive(
     src: IndexedRef<PropositionalTree>,
