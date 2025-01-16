@@ -1,4 +1,4 @@
-use crate::{logic::propositional::Eval, tree::Mapping};
+use crate::{logic::semantic::Eval, tree::Mapping};
 
 pub struct Enumerate<'a, T: Eval<bool>> {
     expr: &'a T,
@@ -12,7 +12,7 @@ impl<'a, T: Eval<bool>> Enumerate<'a, T> {
     }
 }
 
-impl<'a, T: Eval<bool>> Iterator for Enumerate<'a, T> {
+impl<'a, T: Eval<bool, Output = bool>> Iterator for Enumerate<'a, T> {
     type Item = Vec<bool>;
 
     fn next(&mut self) -> Option<Self::Item> {

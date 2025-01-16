@@ -1,6 +1,7 @@
 pub mod addr;
 pub mod mapping;
 pub mod node;
+pub mod recycle;
 pub mod traits;
 pub mod tree;
 

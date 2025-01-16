@@ -9,6 +9,7 @@ pub trait LinkingNode {
     fn operands(&self) -> &[Addr];
     fn remove_operands(&mut self);
     fn replace_operand(&mut self, old: Addr, new: Addr) -> Result<(), &'static str>;
+    fn replace_operands(&mut self, new: &[Addr]);
     fn pop_operand(&mut self) -> Addr;
 }
 
@@ -98,5 +99,20 @@ impl<const MAX_CHILDS: usize> LinkingNode for Node<MAX_CHILDS> {
                 Some(pop_idx)
             })
             .unwrap_or_default()
+    }
+
+    #[inline(always)]
+    fn replace_operands(&mut self, new: &[Addr]) {
+        assert!(new.len() <= MAX_CHILDS);
+
+        let padded = new
+            .iter()
+            .copied()
+            .chain((new.len()..MAX_CHILDS).map(|_| Addr::NONE));
+
+        self.childs
+            .iter_mut()
+            .zip(padded)
+            .for_each(|(dst, src)| *dst = src)
     }
 }

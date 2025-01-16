@@ -1,18 +1,11 @@
-use std::ops::Index;
+use crate::{logic::semantic::Eval, tree::IndexedRef};
 
-use crate::tree::{Addr, IndexedRef, Node, NodeValue, Tree};
+use super::{PLogic, PRef, PropositionalTree};
 
-use super::{PLogic, PRef};
+impl<'a> Eval<bool> for IndexedRef<'a, PropositionalTree> {
+    type Output = bool;
 
-pub trait Eval<D> {
-    fn eval(&self, assignment: &Vec<D>) -> bool;
-}
-
-impl<'a, T> Eval<bool> for IndexedRef<'a, T>
-where
-    T: Index<Addr, Output = NodeValue<Node<2>, PLogic>>,
-{
-    fn eval(&self, assignment: &Vec<bool>) -> bool {
+    fn eval(&self, assignment: &Vec<bool>) -> Self::Output {
         match self.as_ref().value {
             PLogic::Variable { id } => assignment[id.addr()],
             PLogic::Not => !self.inner().eval(assignment),
@@ -22,11 +15,10 @@ where
     }
 }
 
-impl Eval<bool> for Tree<PLogic, 2>
-where
-    Tree<PLogic, 2>: Index<Addr, Output = NodeValue<Node<2>, PLogic>>,
-{
-    fn eval(&self, assignment: &Vec<bool>) -> bool {
+impl Eval<bool> for PropositionalTree {
+    type Output = bool;
+
+    fn eval(&self, assignment: &Vec<bool>) -> Self::Output {
         self.output().eval(assignment)
     }
 }

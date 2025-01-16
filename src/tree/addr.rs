@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Hash)]
 pub struct Addr {
     pub addr: usize,
 }
@@ -92,6 +92,18 @@ where
 {
     fn as_ref(&self) -> &T::Output {
         &self.array[self.idx]
+    }
+}
+
+impl<'a, T> IndexedMutRef<'a, T>
+where
+    T: IndexMut<Addr>,
+{
+    pub fn get_ref(&self) -> IndexedRef<'_, T> {
+        IndexedRef {
+            array: &self.array,
+            idx: self.idx,
+        }
     }
 }
 

@@ -49,13 +49,7 @@ impl<'a> Display for IndexedRef<'a, <PLogic as Semantic>::Tree> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.as_ref().value {
             PLogic::Variable { id } => {
-                write!(
-                    f,
-                    "{}",
-                    self.array
-                        .get_named(id)
-                        .unwrap_or(&format!("Anon{}", id.addr()))
-                )
+                write!(f, "{}", self.array.fmt_named(id))
             }
             PLogic::Not => {
                 write!(f, "\u{00AC}")?;

@@ -6,18 +6,18 @@ use super::addr::{Addr, IndexedMutRef, IndexedRef};
 use super::node::{LinkingNode, Node};
 use super::traits::{Mapping, NodeAllocator};
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct NodeValue<N: LinkingNode, T: Copy + Debug + PartialEq> {
     pub node: N,
     pub value: T,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Tree<T, const MAX_CHILDS: usize = 2>
 where
     T: Copy + Debug + PartialEq,
 {
-    pub(super) named: Vec<Option<String>>,
+    pub named: Vec<Option<String>>,
     pub(super) mapping: HashMap<String, usize>,
     pub(super) nodes: Vec<NodeValue<Node<MAX_CHILDS>, T>>,
     pub(super) output: Addr,
@@ -45,6 +45,13 @@ where
         let output = self.output;
         IndexedRef {
             array: &self,
+            idx: output,
+        }
+    }
+    pub fn mut_output<'a>(&'a mut self) -> IndexedMutRef<'a, Self> {
+        let output = self.output;
+        IndexedMutRef {
+            array: self,
             idx: output,
         }
     }
@@ -86,6 +93,11 @@ where
         );
 
         tree
+    }
+
+    pub fn copy_named<U: Copy + Debug + PartialEq, const N: usize>(&mut self, source: &Tree<U, N>) {
+        self.named = source.named.clone();
+        self.mapping = source.mapping.clone();
     }
 
     /*fn replace<B: Fn(IndexedMutRef<NodeRecycler<T,MAX_CHILDS>>) -> Addr>(
@@ -182,12 +194,49 @@ where
     }
 }
 
+pub struct AddrIterator {
+    begin: usize,
+    end: usize,
+}
+
+impl AddrIterator {
+    pub fn new(n: usize) -> Self {
+        AddrIterator { begin: 0, end: n }
+    }
+}
+
+impl Iterator for AddrIterator {
+    type Item = Addr;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.begin;
+        if current < self.end {
+            self.begin += 1;
+            Some(Addr::new(current))
+        } else {
+            None
+        }
+    }
+}
+
+impl<T, const MAX_CHILDS: usize> IntoIterator for Tree<T, MAX_CHILDS>
+where
+    T: Copy + Debug + PartialEq,
+{
+    type Item = Addr;
+    type IntoIter = AddrIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        AddrIterator::new(self.num_named())
+    }
+}
+
 impl<T, const MAX_CHILDS: usize> Mapping for Tree<T, MAX_CHILDS>
 where
     T: Copy + Debug + PartialEq,
 {
     fn add_named(&mut self, name: &String) -> Addr {
-        let id = self.get_id(name);
+        let id: Addr = self.get_id(name);
         if id.is_addr() {
             id
         } else {
@@ -216,14 +265,14 @@ where
         }
     }
 
-    fn num_named(&self) -> usize {
-        self.named.len()
-    }
-
     fn fmt_named(&self, id: Addr) -> String {
         match self.get_named(id) {
             Some(name) => name.clone(),
             None => format!("x{}", id.addr() + 1),
         }
+    }
+
+    fn num_named(&self) -> usize {
+        self.named.len()
     }
 }
